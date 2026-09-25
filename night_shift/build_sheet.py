@@ -26,51 +26,51 @@ PERIOD_END = dt.date(2026, 9, 26)
 SHIFTS = [("18:00-03:00", "18-3"), ("21:00-06:00", "21-6")]
 EXCLUDED_TIERS = ["Premium Support"]
 TARGETS = [  # KPI, target, direzione, fonte
-    ("Throughput", 0.58, "Alto", "EMEA H2'26 Targets - Resolutions 2"),
-    ("NPS", 70, "Alto", "EMEA H2'26 Targets - Resolutions 2 Italian"),
-    ("Handoff", 0.06, "Basso", "EMEA H2'26 Targets - Resolutions 2"),
-    ("Pending", 0.28, "Basso", "EMEA H2'26 Targets - Resolutions 2"),
-    ("Reopen", 0.10, "Basso", "EMEA H2'26 Targets - Resolutions 2"),
-    ("Recontact", 0.33, "Basso", "EMEA H2'26 Targets - Resolutions 2"),
+    ("Throughput", 0.58, "High", "EMEA H2'26 Targets - Resolutions 2"),
+    ("NPS", 70, "High", "EMEA H2'26 Targets - Resolutions 2 Italian"),
+    ("Handoff", 0.06, "Low", "EMEA H2'26 Targets - Resolutions 2"),
+    ("Pending", 0.28, "Low", "EMEA H2'26 Targets - Resolutions 2"),
+    ("Reopen", 0.10, "Low", "EMEA H2'26 Targets - Resolutions 2"),
+    ("Recontact", 0.33, "Low", "EMEA H2'26 Targets - Resolutions 2"),
 ]
-MEASURES = [  # etichetta, nome misura Tableau, colonna in Turni_Log
-    ("Assegnazioni completate", "cs_ambassador_case_assignments_completed", "P"),
-    ("Casi risolti", "cs_cases_solved_excluding_bot_only", "Q"),
+MEASURES = [  # etichetta, nome misura Tableau, colonna in Shift_Log
+    ("Completed assignments", "cs_ambassador_case_assignments_completed", "P"),
+    ("Solved cases", "cs_cases_solved_excluding_bot_only", "Q"),
     ("Pend events", "cs_ambassador_pend_events", "R"),
     ("Handoff", "cs_ambassador_transfer_handoffs", "S"),
     ("Reopen", "cs_case_reopen", "T"),
-    ("Denominatore Reopen", "cs_cases_solved_excluding_bot_only", "U"),
+    ("Reopen denominator", "cs_cases_solved_excluding_bot_only", "U"),
     ("Recontact", "cs_interaction_specialist_recontacts", "V"),
-    ("Risposte NPS", "cs_customer_nps_responses", "W"),
+    ("NPS responses", "cs_customer_nps_responses", "W"),
     ("Net promoters NPS", "cs_customer_nps_net_promoters", "X"),
 ]
 SPOT_PARAMS = [
-    ("Min assegnazioni per valutare Handoff/Pending", 20),
-    ("Min denominatore per valutare Reopen", 15),
-    ("Min risposte per valutare NPS", 5),
-    ("Fattore k (deviazioni standard)", 1),
-    ("Casi da campionare per KPI ROSSO", 3),
-    ("Casi da campionare per KPI GIALLO", 1),
+    ("Min assignments to assess Handoff/Pending", 20),
+    ("Min denominator to assess Reopen", 15),
+    ("Min responses to assess NPS", 5),
+    ("k factor (standard deviations)", 1),
+    ("Cases to sample per RED KPI", 3),
+    ("Cases to sample per YELLOW KPI", 1),
 ]
 LISTS = {
     "KPI": ["Handoff", "Pending", "NPS", "Reopen"],
-    "Esito": ["Corretto", "Migliorabile", "Non corretto"],
+    "Outcome": ["Correct", "Could improve", "Incorrect"],
     "Root cause": [
-        "Procedura non seguita", "Knowledge gap", "Pend non necessario",
-        "Handoff evitabile", "Handoff a fine turno", "Comunicazione poco chiara",
-        "Utente non risponde", "Limite tool/sistema", "Policy / fuori controllo agente",
-        "Nessun problema",
+        "Procedure not followed", "Knowledge gap", "Unnecessary pend",
+        "Avoidable handoff", "End-of-shift handoff", "Unclear communication",
+        "User not responding", "Tool/system limitation", "Policy / outside agent control",
+        "No issue",
     ],
-    "Azione": ["Coaching 1:1", "Feedback scritto", "Calibrazione team", "Nessuna"],
-    "Sì/No": ["Sì", "No"],
+    "Action": ["1:1 coaching", "Written feedback", "Team calibration", "None"],
+    "Yes/No": ["Yes", "No"],
 }
 AGENT_ROWS = 150  # righe massime nei fogli Agenti / Spotcheck
 FOCUS = ["Handoff", "Pending", "NPS", "Reopen"]
-WEEKDAYS = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]  # WEEKDAY() 1..7
+WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]  # WEEKDAY() 1..7
 MEDALLIA_COLS = [  # campo, intestazione di colonna attesa nell'export Medallia (da verificare)
-    ("LDAP agente", "Agent LDAP"),
-    ("Data risposta", "Response Date"),
-    ("Punteggio (0-10)", "Likelihood to Recommend"),
+    ("Agent LDAP", "Agent LDAP"),
+    ("Response date", "Response Date"),
+    ("Score (0-10)", "Likelihood to Recommend"),
     ("Verbatim", "Comment"),
     ("Case ID", "Case ID"),
 ]
@@ -102,7 +102,7 @@ def widths(ws, spec):
 
 
 def flag_cf(ws, rng, first_cell):
-    for text, fill in (("ROSSO", RED), ("GIALLO", YELLOW), ("VERDE", GREEN)):
+    for text, fill in (("RED", RED), ("YELLOW", YELLOW), ("GREEN", GREEN)):
         ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{first_cell}="{text}"'], fill=fill))
 
 
@@ -140,19 +140,19 @@ def is_night_row(r):
 
 
 # Schedules di prova: tutti gli agenti con almeno un turno notturno + 15 righe diurne
-# (per dimostrare che Nuova_Settimana le scarta)
+# (per dimostrare che New_Week le scarta)
 sched_night = [r for r in sched if any(str(x) in night_strings for x in r[8:15])]
 sched_other = [r for r in sched if r not in sched_night][:15]
 sched_sample = sched_night + sched_other
 
-# Righe REALI della settimana 27/09-03/10 (stessa logica di Nuova_Settimana)
+# Righe REALI della settimana 27/09-03/10 (stessa logica di New_Week)
 week_dates = [as_date(x) for x in sched_hdr[8:15]]
 log_rows = []
 for r in sched_sample:
     if not is_night_row(r):
         continue
     for d, v in zip(week_dates, r[8:15]):
-        log_rows.append([d, r[1], r[4], r[5], r[7], str(v) if v is not None else "", "REALE"])
+        log_rows.append([d, r[1], r[4], r[5], r[7], str(v) if v is not None else "", "REAL"])
 
 # Righe di TEST: turni fittizi per gli agenti dell'estrazione di prova (13-26/09)
 tab_days = defaultdict(set)
@@ -161,7 +161,7 @@ for r in tab:
 test_agents = sorted({r[0] for r in tab})
 for i, a in enumerate(test_agents):
     s = sched_by_ldap.get(a)
-    tier, tl, sa = (s[4], s[5], s[7]) if s else ("Resolutions 2 SE", "n.d.", "No")
+    tier, tl, sa = (s[4], s[5], s[7]) if s else ("Resolutions 2 SE", "n/a", "No")
     d = min(tab_days[a])  # anche la settimana prima del periodo, per il confronto
     while d <= PERIOD_END:
         if d in tab_days[a]:
@@ -184,10 +184,10 @@ def hours(shift):
 
 def code(tier, shift):
     if tier in EXCLUDED_TIERS:
-        return "Escluso"
+        return "Excluded"
     if shift in code_of:
         return code_of[shift]
-    return "Altro" if hours(shift) != (0, 0) else "Off"
+    return "Other" if hours(shift) != (0, 0) else "Off"
 
 
 ref_log = {}
@@ -213,20 +213,20 @@ for d, a, tier, tl, sa, shift, src_ in log_rows:
     if PREV_START <= d <= PREV_END:
         for lab, m, _ in MEASURES:
             agg_prev[att][lab] += tab_val[(a, d, m)]
-            agg_prev["Totale"][lab] += tab_val[(a, d, m)]
+            agg_prev["Total"][lab] += tab_val[(a, d, m)]
         agg_prev[att]["giornate"] += 1
-        agg_prev["Totale"]["giornate"] += 1
+        agg_prev["Total"]["giornate"] += 1
     if not (PERIOD_START <= d <= PERIOD_END):
         continue
     for lab, m, _ in MEASURES:
         v = tab_val[(a, d, m)]
         agg[att][lab] += v
-        agg["Totale"][lab] += v
+        agg["Total"][lab] += v
         agent_agg[a][lab] += v
         agent_shift[(a, att)][lab] += v
     agent_shift[(a, att)]["giornate"] += 1
     agg[att]["giornate"] += 1
-    agg["Totale"]["giornate"] += 1
+    agg["Total"]["giornate"] += 1
     start = d if hd >= prev[2] else d - dt.timedelta(days=1)
     wd = (start.weekday() + 1) % 7 + 1
     load_wd[(att, wd)][0] += 1
@@ -236,14 +236,14 @@ for d, a, tier, tl, sa, shift, src_ in log_rows:
 def kpis(s):
     f = lambda n, dd: round(n / dd, 4) if dd else None
     return {
-        "Throughput": f(s["Casi risolti"], s["Assegnazioni completate"]),
-        "NPS": f(100 * s["Net promoters NPS"], s["Risposte NPS"]),
-        "Handoff": f(s["Handoff"], s["Assegnazioni completate"]),
-        "Pending": f(s["Pend events"], s["Assegnazioni completate"]),
-        "Reopen": f(s["Reopen"], s["Denominatore Reopen"]),
-        "Recontact": f(s["Recontact"], s["Assegnazioni completate"]),
-        "Assegnazioni": s["Assegnazioni completate"],
-        "Giornate": s["giornate"],
+        "Throughput": f(s["Solved cases"], s["Completed assignments"]),
+        "NPS": f(100 * s["Net promoters NPS"], s["NPS responses"]),
+        "Handoff": f(s["Handoff"], s["Completed assignments"]),
+        "Pending": f(s["Pend events"], s["Completed assignments"]),
+        "Reopen": f(s["Reopen"], s["Reopen denominator"]),
+        "Recontact": f(s["Recontact"], s["Completed assignments"]),
+        "Assegnazioni": s["Completed assignments"],
+        "Agent-days": s["giornate"],
     }
 
 
@@ -261,56 +261,56 @@ tab_agents_period = {r[0] for r in tab if PERIOD_START <= as_date(r[5]) <= PERIO
 reference["tableau_non_in_log"] = len(tab_agents_period - {r[1] for r in log_rows})
 reference["agenti"] = len(agent_agg)
 reference["log_rows"] = len(log_rows)
-reference["reali_rows"] = sum(1 for r in log_rows if r[6] == "REALE")
+reference["reali_rows"] = sum(1 for r in log_rows if r[6] == "REAL")
 
 # --------------------------------------------------------------------------- workbook
 wb = openpyxl.Workbook()
 ws_readme = wb.active
-ws_readme.title = "Leggimi"
+ws_readme.title = "Read_Me"
 ws_dash = wb.create_sheet("Dashboard")
 ws_spot = wb.create_sheet("Spotcheck")
-ws_vtl = wb.create_sheet("Vista_TL")
-ws_ag = wb.create_sheet("Agenti")
-ws_rot = wb.create_sheet("Rotazione")
-ws_car = wb.create_sheet("Carico")
-ws_str = wb.create_sheet("Rossi_Consecutivi")
+ws_vtl = wb.create_sheet("TL_View")
+ws_ag = wb.create_sheet("Agents")
+ws_rot = wb.create_sheet("Rotation")
+ws_car = wb.create_sheet("Workload")
+ws_str = wb.create_sheet("Red_Streaks")
 ws_coa = wb.create_sheet("Coaching")
-ws_det = wb.create_sheet("Detractor_NPS")
+ws_det = wb.create_sheet("NPS_Detractors")
 ws_log = wb.create_sheet("Spotcheck_Log")
 ws_set = wb.create_sheet("Setup")
 ws_tab = wb.create_sheet("Tableau")
 ws_med = wb.create_sheet("Medallia")
 ws_sch = wb.create_sheet("Schedules")
-ws_new = wb.create_sheet("Nuova_Settimana")
-ws_tl = wb.create_sheet("Turni_Log")
+ws_new = wb.create_sheet("New_Week")
+ws_tl = wb.create_sheet("Shift_Log")
 
 C1, C2 = "Setup!$C$7", "Setup!$C$8"  # codici turno
 NIGHT_CODES = "Setup!$C$7:$C$12"
 
 # ---- Setup
 ws = ws_set
-ws["B1"] = "SETUP - le celle gialle sono modificabili"
+ws["B1"] = "SETUP - yellow cells can be edited"
 ws["B1"].font = SEC_FONT
-ws["B3"], ws["C3"] = "Data inizio periodo", PERIOD_START
-ws["B4"], ws["C4"] = "Data fine periodo", PERIOD_END
+ws["B3"], ws["C3"] = "Period start date", PERIOD_START
+ws["B4"], ws["C4"] = "Period end date", PERIOD_END
 for c in ("C3", "C4"):
     ws[c].number_format = DATE
     ws[c].fill = INPUT_FILL
-ws["D3"] = "Periodo analizzato in Dashboard / Agenti / Spotcheck (date Tableau = giorno di lavoro)"
-header(ws, 6, ["Orario in Schedules", "Codice turno"], col=2)
+ws["D3"] = "Period analysed in Dashboard / Agents / Spotcheck (Tableau dates = working day)"
+header(ws, 6, ["Hours in Schedules", "Shift code"], col=2)
 for i in range(6):
     ws.cell(7 + i, 2).fill = ws.cell(7 + i, 3).fill = INPUT_FILL
 for i, (s, c) in enumerate(SHIFTS):
     ws.cell(7 + i, 2, s)
     ws.cell(7 + i, 3, c)
-ws["D7"] = "I primi due codici (C7, C8) sono i turni confrontati nello split view"
-ws["B14"] = "Tier esclusi"
+ws["D7"] = "The first two codes (C7, C8) are the shifts compared in the split view"
+ws["B14"] = "Excluded tiers"
 ws["B14"].font = Font(bold=True)
 for i in range(4):
     ws.cell(14 + i, 3).fill = INPUT_FILL
 for i, t in enumerate(EXCLUDED_TIERS):
     ws.cell(14 + i, 3, t)
-header(ws, 19, ["KPI", "Target", "Direzione", "Fonte"], col=2)
+header(ws, 19, ["KPI", "Target", "Direction", "Source"], col=2)
 for i, (k, t, d, f) in enumerate(TARGETS):
     ws.cell(20 + i, 2, k)
     c = ws.cell(20 + i, 3, t)
@@ -318,21 +318,21 @@ for i, (k, t, d, f) in enumerate(TARGETS):
     c.number_format = NUM1 if k == "NPS" else PCT
     ws.cell(20 + i, 4, d)
     ws.cell(20 + i, 5, f)
-header(ws, 29, ["Campo", "Nome misura in Tableau (Measure Names)"], col=2)
+header(ws, 29, ["Field", "Tableau measure name (Measure Names)"], col=2)
 for i, (lab, m, _) in enumerate(MEASURES):
     ws.cell(30 + i, 2, lab)
     c = ws.cell(30 + i, 3, m)
     c.fill = INPUT_FILL
-ws["D35"] = ("TEMPORANEO: il dizionario KPI usa cs_ambassador_case_solves. "
-             "Appena è nell'estrazione Tableau, scrivilo in C35.")
+ws["D35"] = ("TEMPORARY: the KPI dictionary uses cs_ambassador_case_solves. "
+             "As soon as it is in the Tableau extraction, enter it in C35.")
 ws["D35"].font = Font(bold=True, color="C00000")
-ws["B27"], ws["C27"] = "Inizio periodo di confronto (calcolato)", "=C3-(C4-C3+1)"
-ws["B28"], ws["C28"] = "Fine periodo di confronto (calcolato)", "=C3-1"
+ws["B27"], ws["C27"] = "Comparison period start (calculated)", "=C3-(C4-C3+1)"
+ws["B28"], ws["C28"] = "Comparison period end (calculated)", "=C3-1"
 for c in ("C27", "C28"):
     ws[c].number_format = DATE
     ws[c].fill = CALC_FILL
-ws["D27"] = "Periodo precedente di pari durata (con 1 settimana = settimana precedente)"
-header(ws, 41, ["Parametri spotcheck", "Valore"], col=2)
+ws["D27"] = "Previous period of the same length (1 week = previous week)"
+header(ws, 41, ["Spotcheck parameters", "Value"], col=2)
 for i, (lab, v) in enumerate(SPOT_PARAMS):
     ws.cell(42 + i, 2, lab)
     c = ws.cell(42 + i, 3, v)
@@ -341,7 +341,7 @@ header(ws, 2, list(LISTS.keys()), col=7)
 for j, vals in enumerate(LISTS.values()):
     for i, v in enumerate(vals):
         ws.cell(3 + i, 7 + j, v).fill = INPUT_FILL
-ws["G1"] = "Liste per i menu a tendina di Spotcheck_Log"
+ws["G1"] = "Lists for the Spotcheck_Log dropdowns"
 ws["G1"].font = Font(bold=True)
 widths(ws, {"A": 2, "B": 44, "C": 40, "D": 12, "E": 38, "F": 3, "G": 12, "H": 14, "I": 30, "J": 18, "K": 8})
 
@@ -349,7 +349,7 @@ widths(ws, {"A": 2, "B": 44, "C": 40, "D": 12, "E": 38, "F": 3, "G": 12, "H": 14
 ws = ws_tab
 header(ws, 1, ["Breakdown Selection 1", "Breakdown Selection 2", "Breakdown Selection 3",
                "Breakdown Selection 4", "Measure Names", "Column Breakdown Selection",
-               "Measure Values", "Chiave (formula - non toccare)", "Data (formula)", "LDAP|data (formula)"])
+               "Measure Values", "Key (formula - do not edit)", "Date (formula)", "LDAP|date (formula)"])
 for c in ("H1", "I1", "J1"):
     ws[c].fill = CALC_FILL
     ws[c].font = Font(bold=True)
@@ -382,11 +382,11 @@ for i, r in enumerate(sched_sample, start=2):
 widths(ws, {"B": 24, "E": 18, "F": 20})
 ws.freeze_panes = "C2"
 
-# ---- Nuova_Settimana (formula)
+# ---- New_Week (formula)
 ws = ws_new
-header(ws, 1, ["Data", "LDAP", "Tier", "Team Lead", "Special Assignment", "Turno (orario)", "Fonte"])
-ws["I1"] = ("Copia A2:G (Incolla speciale > solo valori) in fondo a Turni_Log. "
-            "Contiene solo gli agenti con almeno un turno notturno in Schedules, esclusi i tier di Setup.")
+header(ws, 1, ["Date", "LDAP", "Tier", "Team Lead", "Special Assignment", "Shift (hours)", "Source"])
+ws["I1"] = ("Copy A2:G (Paste special > values only) at the bottom of Shift_Log. "
+            "Contains only agents with at least one night shift in Schedules, excluding the tiers in Setup.")
 ws["I1"].font = Font(italic=True, color="7F7F7F")
 ws["A2"] = (
     '=IFERROR(LET(ld,Schedules!B2:B3000,tr,Schedules!E2:E3000,tl,Schedules!F2:F3000,'
@@ -396,20 +396,20 @@ ws["A2"] = (
     'keep,BYROW(sh,LAMBDA(r,SUMPRODUCT(--ISNUMBER(MATCH(r,nm,0))))),'
     'idx,FILTER(SEQUENCE(ROWS(ld)),ld<>"",keep>0,COUNTIF(Setup!C14:C17,tr)=0),'
     'MAKEARRAY(ROWS(idx)*7,7,LAMBDA(i,j,LET(r,INDEX(idx,INT((i-1)/7)+1),d,MOD(i-1,7)+1,'
-    'CHOOSE(j,INDEX(dts,1,d),INDEX(ld,r),INDEX(tr,r),INDEX(tl,r),INDEX(sa,r),INDEX(sh,r,d),"REALE"))))),'
-    '"Nessun turno notturno trovato in Schedules")'
+    'CHOOSE(j,INDEX(dts,1,d),INDEX(ld,r),INDEX(tr,r),INDEX(tl,r),INDEX(sa,r),INDEX(sh,r,d),"REAL"))))),'
+    '"No night shift found in Schedules")'
 )
 ws.column_dimensions["A"].number_format = DATE
 widths(ws, {"A": 12, "B": 24, "C": 18, "D": 20, "E": 12, "F": 14, "G": 8})
 ws.freeze_panes = "A2"
 
-# ---- Turni_Log
+# ---- Shift_Log
 ws = ws_tl
-log_hdr = ["Data", "LDAP", "Tier", "Team Lead", "Special Assignment", "Turno (orario)", "Fonte",
-           "Chiave", "Settimana (dom)", "Codice turno", "Ore su giorno D", "Ore su giorno D+1",
-           "Codice turno D-1", "Ore turno D-1 su D", "Turno attribuito (giorno Tableau)"]
-log_hdr += [lab for lab, _, _ in MEASURES] + ["Nel periodo (notte)", "Dati Tableau presenti",
-                                               "Data inizio turno", "Giorno inizio turno (1=dom)"]
+log_hdr = ["Date", "LDAP", "Tier", "Team Lead", "Special Assignment", "Shift (hours)", "Source",
+           "Key", "Week (Sun)", "Shift code", "Hours on day D", "Hours on day D+1",
+           "Shift code D-1", "Hours of D-1 shift on D", "Assigned shift (Tableau day)"]
+log_hdr += [lab for lab, _, _ in MEASURES] + ["In period (night)", "Tableau data present",
+                                               "Shift start date", "Shift start weekday (1=Sun)"]
 header(ws, 1, log_hdr)
 for j in range(8, len(log_hdr) + 1):
     ws.cell(1, j).fill = CALC_FILL
@@ -424,8 +424,8 @@ VALID = 'REGEXMATCH(F2:F&"","^\\d\\d:\\d\\d-\\d\\d:\\d\\d$")'
 ST, EN = "VALUE(LEFT(F2:F,2))", "VALUE(MID(F2:F,7,2))"
 ws["H2"] = '=ARRAYFORMULA(IF(B2:B="","",B2:B&"|"&INT(A2:A)))'
 ws["I2"] = '=ARRAYFORMULA(IF(B2:B="","",A2:A-WEEKDAY(A2:A)+1))'
-ws["J2"] = ('=MAP(B2:B,C2:C,F2:F,LAMBDA(b,c,f,IF(b="","",IF(COUNTIF(Setup!$C$14:$C$17,c)>0,"Escluso",'
-            'IFERROR(VLOOKUP(f,Setup!$B$7:$C$12,2,0),IF(REGEXMATCH(f&"","^\\d\\d:\\d\\d-\\d\\d:\\d\\d$"),"Altro","Off"))))))')
+ws["J2"] = ('=MAP(B2:B,C2:C,F2:F,LAMBDA(b,c,f,IF(b="","",IF(COUNTIF(Setup!$C$14:$C$17,c)>0,"Excluded",'
+            'IFERROR(VLOOKUP(f,Setup!$B$7:$C$12,2,0),IF(REGEXMATCH(f&"","^\\d\\d:\\d\\d-\\d\\d:\\d\\d$"),"Other","Off"))))))')
 ws["K2"] = f'=ARRAYFORMULA(IF(B2:B="","",IF({VALID},IF({EN}<={ST},24-{ST},{EN}-{ST}),0)))'
 ws["L2"] = f'=ARRAYFORMULA(IF(B2:B="","",IF({VALID},IF({EN}<={ST},{EN},0),0)))'
 ws["M2"] = ('=ARRAYFORMULA(IF(B2:B="","",IFERROR(VLOOKUP(B2:B&"|"&(INT(A2:A)-1),'
@@ -451,37 +451,37 @@ ws.freeze_panes = "C2"
 ws = ws_dash
 ws["B1"] = "R2 NIGHT SHIFT - PERFORMANCE"
 ws["B1"].font = Font(bold=True, size=14, color="1F3864")
-ws["B2"] = ('="Periodo: "&TEXT(Setup!C3,"dd/mm/yyyy")&" - "&TEXT(Setup!C4,"dd/mm/yyyy")&'
-            '"   |   confronto con: "&TEXT(Setup!C27,"dd/mm/yyyy")&" - "&TEXT(Setup!C28,"dd/mm/yyyy")&"   (modifica in Setup)"')
-header(ws, 4, ["KPI", "Totale notte", "=Setup!C7", "=Setup!C8", '="Δ "&Setup!C7&" vs "&Setup!C8',
-               "Target", "Totale vs target"], col=2)
-header(ws, 4, ["Prec. Totale", '="Prec. "&Setup!C7', '="Prec. "&Setup!C8', "Δ Totale vs prec.",
-               '="Δ "&Setup!C7&" vs prec."', '="Δ "&Setup!C8&" vs prec."', "Andamento (totale)"], col=9)
+ws["B2"] = ('="Period: "&TEXT(Setup!C3,"dd/mm/yyyy")&" - "&TEXT(Setup!C4,"dd/mm/yyyy")&'
+            '"   |   compared with: "&TEXT(Setup!C27,"dd/mm/yyyy")&" - "&TEXT(Setup!C28,"dd/mm/yyyy")&"   (edit in Setup)"')
+header(ws, 4, ["KPI", "Night total", "=Setup!C7", "=Setup!C8", '="Δ "&Setup!C7&" vs "&Setup!C8',
+               "Target", "Total vs target"], col=2)
+header(ws, 4, ["Prev. total", '="Prev. "&Setup!C7', '="Prev. "&Setup!C8', "Δ Total vs prev.",
+               '="Δ "&Setup!C7&" vs prev."', '="Δ "&Setup!C8&" vs prev."', "Trend (total)"], col=9)
 # somme di base (riga 30+)
 SUM_ROW = 31
-ws.cell(SUM_ROW - 1, 2, "Somme di base (non modificare)").font = SEC_FONT
-header(ws, SUM_ROW, ["Misura", "Totale notte", "=Setup!C7", "=Setup!C8", "Prec. Totale",
-                     '="Prec. "&Setup!C7', '="Prec. "&Setup!C8'], col=2)
-PA = 'Turni_Log!$A$2:$A,">="&Setup!$C$27,Turni_Log!$A$2:$A,"<="&Setup!$C$28'
+ws.cell(SUM_ROW - 1, 2, "Base sums (do not edit)").font = SEC_FONT
+header(ws, SUM_ROW, ["Measure", "Night total", "=Setup!C7", "=Setup!C8", "Prev. total",
+                     '="Prev. "&Setup!C7', '="Prev. "&Setup!C8'], col=2)
+PA = 'Shift_Log!$A$2:$A,">="&Setup!$C$27,Shift_Log!$A$2:$A,"<="&Setup!$C$28'
 sum_ref = {}
 for i, (lab, m, col) in enumerate(MEASURES):
     r = SUM_ROW + 1 + i
     ws.cell(r, 2, lab)
-    rng = f"Turni_Log!${col}$2:${col}"
-    ws.cell(r, 3, f"=SUMIFS({rng},Turni_Log!$Y$2:$Y,1)")
-    ws.cell(r, 4, f"=SUMIFS({rng},Turni_Log!$Y$2:$Y,1,Turni_Log!$O$2:$O,{C1})")
-    ws.cell(r, 5, f"=SUMIFS({rng},Turni_Log!$Y$2:$Y,1,Turni_Log!$O$2:$O,{C2})")
+    rng = f"Shift_Log!${col}$2:${col}"
+    ws.cell(r, 3, f"=SUMIFS({rng},Shift_Log!$Y$2:$Y,1)")
+    ws.cell(r, 4, f"=SUMIFS({rng},Shift_Log!$Y$2:$Y,1,Shift_Log!$O$2:$O,{C1})")
+    ws.cell(r, 5, f"=SUMIFS({rng},Shift_Log!$Y$2:$Y,1,Shift_Log!$O$2:$O,{C2})")
     ws.cell(r, 6, f"=SUMIFS({rng},{PA})")  # le misure sono già 0 fuori dai turni notturni
-    ws.cell(r, 7, f"=SUMIFS({rng},{PA},Turni_Log!$O$2:$O,{C1})")
-    ws.cell(r, 8, f"=SUMIFS({rng},{PA},Turni_Log!$O$2:$O,{C2})")
+    ws.cell(r, 7, f"=SUMIFS({rng},{PA},Shift_Log!$O$2:$O,{C1})")
+    ws.cell(r, 8, f"=SUMIFS({rng},{PA},Shift_Log!$O$2:$O,{C2})")
     sum_ref[lab] = r
 KPI_DEF = {  # num, den, moltiplicatore
-    "Throughput": ("Casi risolti", "Assegnazioni completate", ""),
-    "NPS": ("Net promoters NPS", "Risposte NPS", "100*"),
-    "Handoff": ("Handoff", "Assegnazioni completate", ""),
-    "Pending": ("Pend events", "Assegnazioni completate", ""),
-    "Reopen": ("Reopen", "Denominatore Reopen", ""),
-    "Recontact": ("Recontact", "Assegnazioni completate", ""),
+    "Throughput": ("Solved cases", "Completed assignments", ""),
+    "NPS": ("Net promoters NPS", "NPS responses", "100*"),
+    "Handoff": ("Handoff", "Completed assignments", ""),
+    "Pending": ("Pend events", "Completed assignments", ""),
+    "Reopen": ("Reopen", "Reopen denominator", ""),
+    "Recontact": ("Recontact", "Completed assignments", ""),
 }
 kpi_row = {}
 for i, (k, t, d, f) in enumerate(TARGETS):
@@ -490,31 +490,31 @@ for i, (k, t, d, f) in enumerate(TARGETS):
     num, den, mul = KPI_DEF[k]
     ws.cell(r, 2, k).font = Font(bold=True)
     for col in "CDE":
-        ws[f"{col}{r}"] = f'=IFERROR({mul}{col}{sum_ref[num]}/{col}{sum_ref[den]},"n.d.")'
+        ws[f"{col}{r}"] = f'=IFERROR({mul}{col}{sum_ref[num]}/{col}{sum_ref[den]},"n/a")'
     ws[f"F{r}"] = f'=IFERROR(D{r}-E{r},"")'
     ws[f"G{r}"] = f"=Setup!C{20 + i}"
-    ws[f"H{r}"] = (f'=IF(ISNUMBER(C{r}),IF(Setup!D{20 + i}="Alto",IF(C{r}>=G{r},"In target","Fuori target"),'
-                   f'IF(C{r}<=G{r},"In target","Fuori target")),"")')
+    ws[f"H{r}"] = (f'=IF(ISNUMBER(C{r}),IF(Setup!D{20 + i}="High",IF(C{r}>=G{r},"On target","Off target"),'
+                   f'IF(C{r}<=G{r},"On target","Off target")),"")')
     for col, scol in zip("IJK", "FGH"):
-        ws[f"{col}{r}"] = f'=IFERROR({mul}{scol}{sum_ref[num]}/{scol}{sum_ref[den]},"n.d.")'
+        ws[f"{col}{r}"] = f'=IFERROR({mul}{scol}{sum_ref[num]}/{scol}{sum_ref[den]},"n/a")'
     for col, a, b in zip("LMN", "CDE", "IJK"):
-        ws[f"{col}{r}"] = f'=IF(AND(ISNUMBER({a}{r}),ISNUMBER({b}{r})),{a}{r}-{b}{r},"n.d.")'
-    ws[f"O{r}"] = (f'=IF(ISNUMBER(L{r}),IF(L{r}=0,"Stabile",IF((Setup!D{20 + i}="Alto")=(L{r}>0),'
-                   f'"Migliora","Peggiora")),"n.d.")')
+        ws[f"{col}{r}"] = f'=IF(AND(ISNUMBER({a}{r}),ISNUMBER({b}{r})),{a}{r}-{b}{r},"n/a")'
+    ws[f"O{r}"] = (f'=IF(ISNUMBER(L{r}),IF(L{r}=0,"Stable",IF((Setup!D{20 + i}="High")=(L{r}>0),'
+                   f'"Better","Worse")),"n/a")')
     fmt = NUM1 if k == "NPS" else PCT
     for col in "CDEFGIJKLMN":
         ws[f"{col}{r}"].number_format = fmt
-ws.conditional_formatting.add("H5:H10", FormulaRule(formula=['H5="Fuori target"'], fill=RED))
-ws.conditional_formatting.add("H5:H10", FormulaRule(formula=['H5="In target"'], fill=GREEN))
-ws.conditional_formatting.add("O5:O10", FormulaRule(formula=['O5="Peggiora"'], fill=RED))
-ws.conditional_formatting.add("O5:O10", FormulaRule(formula=['O5="Migliora"'], fill=GREEN))
-header(ws, 12, ["Prec. Totale", '="Prec. "&Setup!C7', '="Prec. "&Setup!C8'], col=9)
-ws["B12"] = "Volumi"
+ws.conditional_formatting.add("H5:H10", FormulaRule(formula=['H5="Off target"'], fill=RED))
+ws.conditional_formatting.add("H5:H10", FormulaRule(formula=['H5="On target"'], fill=GREEN))
+ws.conditional_formatting.add("O5:O10", FormulaRule(formula=['O5="Worse"'], fill=RED))
+ws.conditional_formatting.add("O5:O10", FormulaRule(formula=['O5="Better"'], fill=GREEN))
+header(ws, 12, ["Prev. total", '="Prev. "&Setup!C7', '="Prev. "&Setup!C8'], col=9)
+ws["B12"] = "Volumes"
 ws["B12"].font = SEC_FONT
 vols = [
-    ("Assegnazioni completate", "SUM", "Assegnazioni completate"),
-    ("Casi risolti", "SUM", "Casi risolti"),
-    ("Risposte NPS", "SUM", "Risposte NPS"),
+    ("Completed assignments", "SUM", "Completed assignments"),
+    ("Solved cases", "SUM", "Solved cases"),
+    ("NPS responses", "SUM", "NPS responses"),
 ]
 r = 13
 for lab, _, src_lab in vols:
@@ -524,44 +524,44 @@ for lab, _, src_lab in vols:
     for col, scol in zip("IJK", "FGH"):
         ws[f"{col}{r}"] = f"={scol}{sum_ref[src_lab]}"
     r += 1
-ws.cell(r, 2, "Giornate-agente (turni notturni)")
-ws[f"C{r}"] = "=COUNTIF(Turni_Log!$Y$2:$Y,1)"
-ws[f"D{r}"] = f"=COUNTIFS(Turni_Log!$Y$2:$Y,1,Turni_Log!$O$2:$O,{C1})"
-ws[f"E{r}"] = f"=COUNTIFS(Turni_Log!$Y$2:$Y,1,Turni_Log!$O$2:$O,{C2})"
-ws[f"I{r}"] = f"=COUNTIFS({PA},Turni_Log!$O$2:$O,{C1})+COUNTIFS({PA},Turni_Log!$O$2:$O,{C2})"
-ws[f"J{r}"] = f"=COUNTIFS({PA},Turni_Log!$O$2:$O,{C1})"
-ws[f"K{r}"] = f"=COUNTIFS({PA},Turni_Log!$O$2:$O,{C2})"
+ws.cell(r, 2, "Agent-days (night shifts)")
+ws[f"C{r}"] = "=COUNTIF(Shift_Log!$Y$2:$Y,1)"
+ws[f"D{r}"] = f"=COUNTIFS(Shift_Log!$Y$2:$Y,1,Shift_Log!$O$2:$O,{C1})"
+ws[f"E{r}"] = f"=COUNTIFS(Shift_Log!$Y$2:$Y,1,Shift_Log!$O$2:$O,{C2})"
+ws[f"I{r}"] = f"=COUNTIFS({PA},Shift_Log!$O$2:$O,{C1})+COUNTIFS({PA},Shift_Log!$O$2:$O,{C2})"
+ws[f"J{r}"] = f"=COUNTIFS({PA},Shift_Log!$O$2:$O,{C1})"
+ws[f"K{r}"] = f"=COUNTIFS({PA},Shift_Log!$O$2:$O,{C2})"
 r += 1
-ws.cell(r, 2, "Agenti distinti")
-ws[f"C{r}"] = '=IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$B$2:$B,Turni_Log!$Y$2:$Y=1))),0)'
-ws[f"D{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$B$2:$B,Turni_Log!$Y$2:$Y=1,Turni_Log!$O$2:$O={C1}))),0)'
-ws[f"E{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$B$2:$B,Turni_Log!$Y$2:$Y=1,Turni_Log!$O$2:$O={C2}))),0)'
-PF = "Turni_Log!$A$2:$A>=Setup!$C$27,Turni_Log!$A$2:$A<=Setup!$C$28"
-ws[f"I{r}"] = (f'=IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$B$2:$B,{PF},'
-               f'((Turni_Log!$O$2:$O={C1})+(Turni_Log!$O$2:$O={C2}))>0))),0)')
-ws[f"J{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$B$2:$B,{PF},Turni_Log!$O$2:$O={C1}))),0)'
-ws[f"K{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$B$2:$B,{PF},Turni_Log!$O$2:$O={C2}))),0)'
+ws.cell(r, 2, "Distinct agents")
+ws[f"C{r}"] = '=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$Y$2:$Y=1))),0)'
+ws[f"D{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$Y$2:$Y=1,Shift_Log!$O$2:$O={C1}))),0)'
+ws[f"E{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$Y$2:$Y=1,Shift_Log!$O$2:$O={C2}))),0)'
+PF = "Shift_Log!$A$2:$A>=Setup!$C$27,Shift_Log!$A$2:$A<=Setup!$C$28"
+ws[f"I{r}"] = (f'=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,{PF},'
+               f'((Shift_Log!$O$2:$O={C1})+(Shift_Log!$O$2:$O={C2}))>0))),0)')
+ws[f"J{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,{PF},Shift_Log!$O$2:$O={C1}))),0)'
+ws[f"K{r}"] = f'=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,{PF},Shift_Log!$O$2:$O={C2}))),0)'
 r += 1
-ws.cell(r, 2, "Assegnazioni per giornata-agente")
-ws[f"C{r}"] = f'=IFERROR(C13/C16,"n.d.")'
-ws[f"D{r}"] = f'=IFERROR(D13/D16,"n.d.")'
-ws[f"E{r}"] = f'=IFERROR(E13/E16,"n.d.")'
+ws.cell(r, 2, "Assignments per agent-day")
+ws[f"C{r}"] = f'=IFERROR(C13/C16,"n/a")'
+ws[f"D{r}"] = f'=IFERROR(D13/D16,"n/a")'
+ws[f"E{r}"] = f'=IFERROR(E13/E16,"n/a")'
 for col in "IJK":
-    ws[f"{col}{r}"] = f'=IFERROR({col}13/{col}16,"n.d.")'
+    ws[f"{col}{r}"] = f'=IFERROR({col}13/{col}16,"n/a")'
 for col in "CDEIJK":
     ws[f"{col}{r}"].number_format = NUM1
-ws["B20"] = ("Nota: una giornata Tableau (giorno D) è attribuita al turno che vi lavora più ore: "
-             "18-3 del giorno D (6h) oppure 21-6 del giorno D-1 (6h). "
-             "Special Assignment inclusi; tier esclusi da Setup.")
+ws["B20"] = ("Note: a Tableau day (day D) is assigned to the shift that works the most hours on it: "
+             "18-3 of day D (6h) or 21-6 of day D-1 (6h). "
+             "Special Assignments included; tiers excluded in Setup.")
 ws["B20"].font = Font(italic=True, color="7F7F7F")
 
 # Trend settimanale
 TR = 44
-ws.cell(TR - 1, 2, "Trend settimanale (ultime 8 settimane fino alla data fine)").font = SEC_FONT
-tr_hdr = ["Settimana (dom)"]
+ws.cell(TR - 1, 2, "Weekly trend (last 8 weeks up to the end date)").font = SEC_FONT
+tr_hdr = ["Week (Sun)"]
 for k, *_ in TARGETS:
     tr_hdr += [f"{k} Tot", f"{k} 18-3", f"{k} 21-6"]
-tr_hdr += ["Assegn. Tot", "Assegn. 18-3", "Assegn. 21-6"]
+tr_hdr += ["Assign. Tot", "Assign. 18-3", "Assign. 21-6"]
 header(ws, TR, tr_hdr, col=2)
 W1, W8 = TR + 1, TR + 8
 ws.cell(W1, 2, f"=SEQUENCE(8,1,Setup!$C$4-WEEKDAY(Setup!$C$4)+1-49,7)")
@@ -571,7 +571,7 @@ WK = f"$B${W1}:$B${W8}"
 
 
 def s(col, code_ref=None):
-    base = f"SUMIFS(Turni_Log!${col}$2:${col},Turni_Log!$I$2:$I,w,Turni_Log!$O$2:$O,"
+    base = f"SUMIFS(Shift_Log!${col}$2:${col},Shift_Log!$I$2:$I,w,Shift_Log!$O$2:$O,"
     if code_ref:
         return base + code_ref + ")"
     return f"({base}{C1})+{base}{C2}))"
@@ -596,33 +596,33 @@ for col in range(9, 30):
 
 # ---- Agenti
 ws = ws_ag
-ag_hdr = ["LDAP", "Team Lead", "Giorni " + SHIFTS[0][1], "Giorni " + SHIFTS[1][1], "Turno prevalente"]
+ag_hdr = ["LDAP", "Team Lead", "Days " + SHIFTS[0][1], "Days " + SHIFTS[1][1], "Main shift"]
 ag_hdr += [lab for lab, _, _ in MEASURES]
 ag_hdr += ["Throughput", "NPS", "Handoff", "Pending", "Reopen", "Recontact",
-           "Flag Handoff", "Flag Pending", "Flag NPS", "Flag Reopen", "Punteggio", "Casi da campionare"]
+           "Flag Handoff", "Flag Pending", "Flag NPS", "Flag Reopen", "Score", "Cases to sample"]
 header(ws, 1, ag_hdr)
 N = AGENT_ROWS + 1
 A = f"A2:A{N}"
-LOG = "Turni_Log!$B$2:$B"
-PER = "Turni_Log!$Y$2:$Y"
+LOG = "Shift_Log!$B$2:$B"
+PER = "Shift_Log!$Y$2:$Y"
 ws["A2"] = f'=IFERROR(SORT(UNIQUE(FILTER({LOG},{PER}=1))),"")'
-ws["B2"] = f'=MAP({A},LAMBDA(a,IF(a="","",IFERROR(VLOOKUP(a,Turni_Log!$B$2:$D,3,0),""))))'
-ws["C2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,{PER},1,Turni_Log!$O$2:$O,{C1}))))'
-ws["D2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,{PER},1,Turni_Log!$O$2:$O,{C2}))))'
-ws["E2"] = (f'=ARRAYFORMULA(IF({A}="","",IF((C2:C{N}>0)*(D2:D{N}>0),"Misto",'
+ws["B2"] = f'=MAP({A},LAMBDA(a,IF(a="","",IFERROR(VLOOKUP(a,Shift_Log!$B$2:$D,3,0),""))))'
+ws["C2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,{PER},1,Shift_Log!$O$2:$O,{C1}))))'
+ws["D2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,{PER},1,Shift_Log!$O$2:$O,{C2}))))'
+ws["E2"] = (f'=ARRAYFORMULA(IF({A}="","",IF((C2:C{N}>0)*(D2:D{N}>0),"Mixed",'
             f'IF(C2:C{N}>0,{C1},{C2}))))')
 for i, (lab, m, col) in enumerate(MEASURES):
     L = openpyxl.utils.get_column_letter(6 + i)
-    ws[f"{L}2"] = f'=MAP({A},LAMBDA(a,IF(a="","",SUMIFS(Turni_Log!${col}$2:${col},{LOG},a,{PER},1))))'
+    ws[f"{L}2"] = f'=MAP({A},LAMBDA(a,IF(a="","",SUMIFS(Shift_Log!${col}$2:${col},{LOG},a,{PER},1))))'
 # F Assegn, G Risolti, H Pend, I Handoff, J Reopen, K Den reopen, L Recontact, M Risp NPS, N Net NPS
 g = lambda c: f"{c}2:{c}{N}"
 MINA, MINR, MINN = "Setup!$C$42", "Setup!$C$43", "Setup!$C$44"
-ws["O2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("F")}>0,{g("G")}/{g("F")},"n.d.")))'
+ws["O2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("F")}>0,{g("G")}/{g("F")},"n/a")))'
 ws["P2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("M")}>={MINN},100*{g("N")}/{g("M")},"n.s.")))'
 ws["Q2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("F")}>={MINA},{g("I")}/{g("F")},"n.s.")))'
 ws["R2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("F")}>={MINA},{g("H")}/{g("F")},"n.s.")))'
 ws["S2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("K")}>={MINR},{g("J")}/{g("K")},"n.s.")))'
-ws["T2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("F")}>0,{g("L")}/{g("F")},"n.d.")))'
+ws["T2"] = f'=ARRAYFORMULA(IF({A}="","",IF({g("F")}>0,{g("L")}/{g("F")},"n/a")))'
 
 
 def flag(valcol, tgt_row, mean_cell, higher_is_worse):
@@ -635,7 +635,7 @@ def flag(valcol, tgt_row, mean_cell, higher_is_worse):
     else:
         red = f"({v}<{tgt})*({v}<{mean_cell}-Setup!$C$45*{sd})"
         yel = f"{v}<{tgt}"
-    return (f'=ARRAYFORMULA(IF({A}="","",IF(ISNUMBER({v}),IF({red},"ROSSO",IF({yel},"GIALLO","VERDE")),"n.s.")))')
+    return (f'=ARRAYFORMULA(IF({A}="","",IF(ISNUMBER({v}),IF({red},"RED",IF({yel},"YELLOW","GREEN")),"n.s.")))')
 
 
 ws["U2"] = flag("Q", 22, f"Dashboard!$C${kpi_row['Handoff']}", True)
@@ -643,8 +643,8 @@ ws["V2"] = flag("R", 23, f"Dashboard!$C${kpi_row['Pending']}", True)
 ws["W2"] = flag("P", 21, f"Dashboard!$C${kpi_row['NPS']}", False)
 ws["X2"] = flag("S", 24, f"Dashboard!$C${kpi_row['Reopen']}", True)
 cnt = lambda t: "+".join(f'({g(c)}="{t}")' for c in "UVWX")
-ws["Y2"] = f'=ARRAYFORMULA(IF({A}="","",3*({cnt("ROSSO")})+({cnt("GIALLO")})))'
-ws["Z2"] = (f'=ARRAYFORMULA(IF({A}="","",Setup!$C$46*({cnt("ROSSO")})+Setup!$C$47*({cnt("GIALLO")})))')
+ws["Y2"] = f'=ARRAYFORMULA(IF({A}="","",3*({cnt("RED")})+({cnt("YELLOW")})))'
+ws["Z2"] = (f'=ARRAYFORMULA(IF({A}="","",Setup!$C$46*({cnt("RED")})+Setup!$C$47*({cnt("YELLOW")})))')
 for c in "OQRST":
     ws.column_dimensions[c].number_format = PCT
 ws.column_dimensions["P"].number_format = NUM1
@@ -654,36 +654,36 @@ ws.freeze_panes = "B2"
 
 # ---- Spotcheck
 ws = ws_spot
-ws["A1"] = "SPOTCHECK - focus su Handoff, Pending, NPS e Reopen"
+ws["A1"] = "SPOTCHECK - focus on Handoff, Pending, NPS and Reopen"
 ws["A1"].font = Font(bold=True, size=14, color="1F3864")
-ws["A2"] = '="Periodo: "&TEXT(Setup!C3,"dd/mm/yyyy")&" - "&TEXT(Setup!C4,"dd/mm/yyyy")&"  |  ordinato per priorità"'
-ws["A3"] = ("ROSSO = fuori target e oltre media notte ± k·dev.std  |  GIALLO = fuori target  |  "
-            "VERDE = in target  |  n.s. = volume insufficiente (soglie in Setup). "
-            "Registra ogni caso controllato in Spotcheck_Log.")
+ws["A2"] = '="Period: "&TEXT(Setup!C3,"dd/mm/yyyy")&" - "&TEXT(Setup!C4,"dd/mm/yyyy")&"  |  sorted by priority"'
+ws["A3"] = ("RED = off target and beyond night average ± k·std.dev  |  YELLOW = off target  |  "
+            "GREEN = on target  |  n.s. = not enough volume (thresholds in Setup). "
+            "Log every checked case in Spotcheck_Log.")
 ws["A3"].font = Font(italic=True, color="7F7F7F")
-sp_hdr = ["LDAP", "Team Lead", "Turno", "Assegn.", "Handoff", "Flag", "Pending", "Flag", "NPS",
-          "Risp. NPS", "Flag", "Reopen", "Flag", "Punteggio", "Casi da campionare",
-          "Spotcheck registrati", "Stato"]
+sp_hdr = ["LDAP", "Team Lead", "Shift", "Assign.", "Handoff", "Flag", "Pending", "Flag", "NPS",
+          "NPS resp.", "Flag", "Reopen", "Flag", "Score", "Cases to sample",
+          "Spotchecks logged", "Status"]
 header(ws, 4, sp_hdr)
 M = f"{AGENT_ROWS + 1}"
 cols = ["A", "B", "E", "F", "Q", "U", "R", "V", "P", "M", "W", "S", "X", "Y", "Z"]
-stack = ",".join(f"Agenti!{c}2:{c}{M}" for c in cols)
-ws["A5"] = f'=IFERROR(SORT(FILTER(HSTACK({stack}),Agenti!A2:A{M}<>""),14,FALSE,15,FALSE,1,TRUE),"")'
+stack = ",".join(f"Agents!{c}2:{c}{M}" for c in cols)
+ws["A5"] = f'=IFERROR(SORT(FILTER(HSTACK({stack}),Agents!A2:A{M}<>""),14,FALSE,15,FALSE,1,TRUE),"")'
 E = 5 + AGENT_ROWS - 1
 ws["P5"] = (f'=MAP(A5:A{E},LAMBDA(a,IF(a="","",COUNTIFS(Spotcheck_Log!$B$2:$B,a,'
             f'Spotcheck_Log!$A$2:$A,">="&Setup!$C$3,Spotcheck_Log!$A$2:$A,"<="&Setup!$C$4))))')
-ws["Q5"] = (f'=ARRAYFORMULA(IF(A5:A{E}="","",IF(O5:O{E}=0,"-",IF(P5:P{E}>=O5:O{E},"Completato",'
-            f'"Da fare ("&(O5:O{E}-P5:P{E})&")"))))')
+ws["Q5"] = (f'=ARRAYFORMULA(IF(A5:A{E}="","",IF(O5:O{E}=0,"-",IF(P5:P{E}>=O5:O{E},"Done",'
+            f'"To do ("&(O5:O{E}-P5:P{E})&")"))))')
 for c in "EGL":
     ws.column_dimensions[c].number_format = PCT
 ws.column_dimensions["I"].number_format = NUM1
 for c in "FHKM":
     flag_cf(ws, f"{c}5:{c}{E}", f"{c}5")
-ws.conditional_formatting.add(f"Q5:Q{E}", FormulaRule(formula=['LEFT(Q5,7)="Da fare"'], fill=RED))
-ws.conditional_formatting.add(f"Q5:Q{E}", FormulaRule(formula=['Q5="Completato"'], fill=GREEN))
+ws.conditional_formatting.add(f"Q5:Q{E}", FormulaRule(formula=['LEFT(Q5,5)="To do"'], fill=RED))
+ws.conditional_formatting.add(f"Q5:Q{E}", FormulaRule(formula=['Q5="Done"'], fill=GREEN))
 # riepilogo root cause
-ws["S4"], ws["T4"] = "Root cause (casi del periodo)", "N. casi"
-header(ws, 4, ["Root cause (casi del periodo)", "N. casi", "% sul totale"], col=19)
+ws["S4"], ws["T4"] = "Root cause (period cases)", "No. of cases"
+header(ws, 4, ["Root cause (period cases)", "No. of cases", "% of total"], col=19)
 for i in range(len(LISTS["Root cause"])):
     r = 5 + i
     ws[f"S{r}"] = f"=Setup!I{3 + i}"
@@ -699,29 +699,29 @@ ws.freeze_panes = "B5"
 
 # ---- Spotcheck_Log
 ws = ws_log
-log2_hdr = ["Data del caso", "LDAP", "Turno", "KPI", "Case ID / link", "Esito", "Root cause",
-            "Azione", "Coaching fatto?", "Data spotcheck", "Eseguito da (TL)", "Note"]
+log2_hdr = ["Case date", "LDAP", "Shift", "KPI", "Case ID / link", "Outcome", "Root cause",
+            "Action", "Coaching done?", "Spotcheck date", "Done by (TL)", "Notes"]
 header(ws, 1, log2_hdr)
 ws.column_dimensions["A"].number_format = DATE
 ws.column_dimensions["J"].number_format = DATE
 dv = [
-    ("B", f"=Agenti!$A$2:$A${AGENT_ROWS + 1}"),
+    ("B", f"=Agents!$A$2:$A${AGENT_ROWS + 1}"),
     ("C", "=Setup!$C$7:$C$12"),
     ("D", f"=Setup!$G$3:$G${2 + len(LISTS['KPI'])}"),
-    ("F", f"=Setup!$H$3:$H${2 + len(LISTS['Esito'])}"),
+    ("F", f"=Setup!$H$3:$H${2 + len(LISTS['Outcome'])}"),
     ("G", f"=Setup!$I$3:$I${2 + len(LISTS['Root cause'])}"),
-    ("H", f"=Setup!$J$3:$J${2 + len(LISTS['Azione'])}"),
-    ("I", f"=Setup!$K$3:$K${2 + len(LISTS['Sì/No'])}"),
+    ("H", f"=Setup!$J$3:$J${2 + len(LISTS['Action'])}"),
+    ("I", f"=Setup!$K$3:$K${2 + len(LISTS['Yes/No'])}"),
 ]
 for col, formula in dv:
     v = DataValidation(type="list", formula1=formula, allow_blank=True)
     v.add(f"{col}2:{col}2000")
     ws.add_data_validation(v)
-coach_agents = [a for a in test_agents if agent_agg.get(a, {}).get("Assegnazioni completate", 0) >= 20][:2]
+coach_agents = [a for a in test_agents if agent_agg.get(a, {}).get("Completed assignments", 0) >= 20][:2]
 for i, (a, k) in enumerate(zip(coach_agents, ["Handoff", "Pending"])):
-    ws.append([PERIOD_START - dt.timedelta(days=3 - i), a, SHIFTS[i][1], k, f"TEST-{2000 + i}", "Migliorabile",
-               "Handoff evitabile" if k == "Handoff" else "Pend non necessario", "Coaching 1:1", "Sì",
-               PERIOD_START, "TL di prova", "TEST - riga di esempio per il foglio Coaching: cancellala"])
+    ws.append([PERIOD_START - dt.timedelta(days=3 - i), a, SHIFTS[i][1], k, f"TEST-{2000 + i}", "Could improve",
+               "Avoidable handoff" if k == "Handoff" else "Unnecessary pend", "1:1 coaching", "Yes",
+               PERIOD_START, "Test TL", "TEST - sample row for the Coaching sheet: delete it"])
     for col in (1, 10):
         ws.cell(ws.max_row, col).number_format = DATE
 widths(ws, {"A": 12, "B": 24, "C": 8, "D": 10, "E": 34, "F": 13, "G": 30, "H": 18, "I": 10,
@@ -729,8 +729,8 @@ widths(ws, {"A": 12, "B": 24, "C": 8, "D": 10, "E": 34, "F": 13, "G": 30, "H": 1
 ws.freeze_panes = "A2"
 
 # ---- Riferimenti comuni per i fogli di analisi
-TL_ = "Turni_Log!"
-LOGB, LOGY, LOGO = "Turni_Log!$B$2:$B", "Turni_Log!$Y$2:$Y", "Turni_Log!$O$2:$O"
+TL_ = "Shift_Log!"
+LOGB, LOGY, LOGO = "Shift_Log!$B$2:$B", "Shift_Log!$Y$2:$Y", "Shift_Log!$O$2:$O"
 MCOL = {lab: col for lab, _, col in MEASURES}
 MIN_OF = {"Throughput": "0", "Recontact": "0", "Handoff": "Setup!$C$42", "Pending": "Setup!$C$42",
           "Reopen": "Setup!$C$43", "NPS": "Setup!$C$44"}
@@ -763,23 +763,23 @@ AG_END = AGENT_ROWS + 1  # ultima riga di Agenti
 
 # ---- Rotazione (4): stesso agente, giorni 18-3 vs giorni 21-6
 ws = ws_rot
-title(ws, "ROTAZIONE - stesso agente sul 18-3 e sul 21-6",
-      "Solo agenti che nel periodo hanno lavorato su entrambi i turni. Δ = " + SHIFTS[0][1] + " meno "
-      + SHIFTS[1][1] + ". n.s. = volume sotto le soglie di Setup (C42:C44). "
-      "La riga 'Totale agenti misti' somma numeratori e denominatori di tutti questi agenti.")
-rot_hdr = ["LDAP", "Team Lead", '="Giorni "&Setup!C7', '="Giorni "&Setup!C8',
-           '="Assegn./giornata "&Setup!C7', '="Assegn./giornata "&Setup!C8']
+title(ws, "ROTATION - same agent on 18-3 and on 21-6",
+      "Only agents who worked both shifts in the period. Δ = " + SHIFTS[0][1] + " minus "
+      + SHIFTS[1][1] + ". n.s. = volume below the Setup thresholds (C42:C44). "
+      "The 'Total mixed agents' row sums numerators and denominators of all these agents.")
+rot_hdr = ["LDAP", "Team Lead", '="Days "&Setup!C7', '="Days "&Setup!C8',
+           '="Assign./agent-day "&Setup!C7', '="Assign./agent-day "&Setup!C8']
 for k in KPI_NAMES:
     rot_hdr += [f'="{k} "&Setup!C7', f'="{k} "&Setup!C8', f"Δ {k}"]
 header(ws, 4, rot_hdr)
 R1, R2 = 6, 6 + AGENT_ROWS - 1
 RA = f"A{R1}:A{R2}"
-ws["A5"] = "Totale agenti misti"
+ws["A5"] = "Total mixed agents"
 ws["A5"].font = Font(bold=True)
-ws[f"A{R1}"] = (f'=IFERROR(FILTER(Agenti!A2:A{AG_END},Agenti!E2:E{AG_END}="Misto"),'
-                '"Nessun agente su entrambi i turni nel periodo")')
-ws[f"B{R1}"] = f'=MAP({RA},LAMBDA(a,IF(a="","",IFERROR(VLOOKUP(a,Agenti!$A$2:$B${AG_END},2,0),""))))'
-sa_ = lambda col, code: f"SUMIFS(Turni_Log!${col}$2:${col},{LOGB},a,{LOGY},1,{LOGO},{code})"
+ws[f"A{R1}"] = (f'=IFERROR(FILTER(Agents!A2:A{AG_END},Agents!E2:E{AG_END}="Mixed"),'
+                '"No agent on both shifts in the period")')
+ws[f"B{R1}"] = f'=MAP({RA},LAMBDA(a,IF(a="","",IFERROR(VLOOKUP(a,Agents!$A$2:$B${AG_END},2,0),""))))'
+sa_ = lambda col, code: f"SUMIFS(Shift_Log!${col}$2:${col},{LOGB},a,{LOGY},1,{LOGO},{code})"
 tot_ = lambda col, code: f"SUM(MAP({RA},LAMBDA(a,IF(a=\"\",0,{sa_(col, code)}))))"
 for col, code in (("C", C1), ("D", C2)):
     ws[f"{col}{R1}"] = f'=MAP({RA},LAMBDA(a,IF(a="","",COUNTIFS({LOGB},a,{LOGY},1,{LOGO},{code}))))'
@@ -787,7 +787,7 @@ for col, code in (("C", C1), ("D", C2)):
 for col, dcol, code in (("E", "C", C1), ("F", "D", C2)):
     ws[f"{col}{R1}"] = (f'=MAP({RA},{dcol}{R1}:{dcol}{R2},LAMBDA(a,n,IF(a="","",IF(n>0,'
                         f'{sa_("P", code)}/n,"-"))))')
-    ws[f"{col}5"] = f'=IFERROR({tot_("P", code)}/{dcol}5,"n.d.")'
+    ws[f"{col}5"] = f'=IFERROR({tot_("P", code)}/{dcol}5,"n/a")'
     for r in range(5, R2 + 1):
         ws[f"{col}{r}"].number_format = NUM1
 c = 7
@@ -797,7 +797,7 @@ for k in KPI_NAMES:
         L = L_(c)
         ws[f"{L}{R1}"] = (f'=MAP({RA},LAMBDA(a,IF(a="","",'
                           f'{kpi_expr(k, lambda cc, code=code: sa_(cc, code))})))')
-        ws[f"{L}5"] = f'=IFERROR({mul}{tot_(MCOL[num], code)}/{tot_(MCOL[den], code)},"n.d.")'
+        ws[f"{L}5"] = f'=IFERROR({mul}{tot_(MCOL[num], code)}/{tot_(MCOL[den], code)},"n/a")'
         fmt_col(ws, L, k, 5, R2)
         c += 1
     L, La, Lb = L_(c), L_(c - 2), L_(c - 1)
@@ -815,32 +815,32 @@ ws.freeze_panes = "B6"
 
 # ---- Carico (6): assegnazioni per giornata-agente
 ws = ws_car
-title(ws, "CARICO - assegnazioni per giornata-agente",
-      "Giornata-agente = giorno Tableau attribuito a un turno notturno nel periodo. Giorno / data = giorno di INIZIO "
-      "del turno (es. il 21-6 che inizia lunedì è 'Lun'). Settimane = settimana (dom) del giorno Tableau.")
-blk = ["Giornate", "Assegn.", "Assegn./giornata"]
-car_hdr = [f'="{b} "&Setup!C{7 + j}' for j in range(2) for b in blk] + [f"{b} totale" for b in blk]
+title(ws, "WORKLOAD - assignments per agent-day",
+      "Agent-day = Tableau day assigned to a night shift in the period. Weekday / date = the day the shift STARTS "
+      "(e.g. a 21-6 starting on Monday is 'Mon'). Weeks = week (Sun) of the Tableau day.")
+blk = ["Agent-days", "Assign.", "Assign./agent-day"]
+car_hdr = [f'="{b} "&Setup!C{7 + j}' for j in range(2) for b in blk] + [f"{b} total" for b in blk]
 
 
 # a) per giorno della settimana
-ws["A4"] = "Per giorno della settimana"
+ws["A4"] = "By weekday"
 ws["A4"].font = SEC_FONT
-header(ws, 5, ["Giorno"] + car_hdr)
-for i, wd in enumerate(WEEKDAYS + ["Totale"]):
+header(ws, 5, ["Weekday"] + car_hdr)
+for i, wd in enumerate(WEEKDAYS + ["Total"]):
     r = 6 + i
     ws[f"A{r}"] = wd
-    extra = f",Turni_Log!$AB$2:$AB,{i + 1}" if wd != "Totale" else ""
+    extra = f",Shift_Log!$AB$2:$AB,{i + 1}" if wd != "Total" else ""
     for j, code in enumerate((C1, C2, None)):
         cg, ca, cr = (L_(2 + 3 * j + x) for x in range(3))
         if code:
             ws[f"{cg}{r}"] = f"=COUNTIFS({LOGY},1,{LOGO},{code}{extra})"
-            ws[f"{ca}{r}"] = f"=SUMIFS(Turni_Log!$P$2:$P,{LOGY},1,{LOGO},{code}{extra})"
+            ws[f"{ca}{r}"] = f"=SUMIFS(Shift_Log!$P$2:$P,{LOGY},1,{LOGO},{code}{extra})"
         else:
             ws[f"{cg}{r}"] = f"=B{r}+E{r}"
             ws[f"{ca}{r}"] = f"=C{r}+F{r}"
         ws[f"{cr}{r}"] = f'=IFERROR({ca}{r}/{cg}{r},"-")'
         ws[f"{cr}{r}"].number_format = NUM1
-    if wd == "Totale":
+    if wd == "Total":
         for col in range(1, 11):
             ws.cell(r, col).font = Font(bold=True)
             ws.cell(r, col).fill = CALC_FILL
@@ -854,7 +854,7 @@ def load_map(ws, r1, r2, keycol, crit):
         if code:
             ws[f"{cg}{r1}"] = f'=MAP({K},LAMBDA(k,IF(k="","",COUNTIFS({LOGY},1,{LOGO},{code},{crit}))))'
             ws[f"{ca}{r1}"] = (f'=MAP({K},LAMBDA(k,IF(k="","",'
-                               f'SUMIFS(Turni_Log!$P$2:$P,{LOGY},1,{LOGO},{code},{crit}))))')
+                               f'SUMIFS(Shift_Log!$P$2:$P,{LOGY},1,{LOGO},{code},{crit}))))')
         else:
             g1, a1 = L_(ord(keycol) - 64 + 1), L_(ord(keycol) - 64 + 2)
             g2, a2 = L_(ord(keycol) - 64 + 4), L_(ord(keycol) - 64 + 5)
@@ -867,43 +867,43 @@ def load_map(ws, r1, r2, keycol, crit):
 
 
 # b) per settimana
-ws["A16"] = "Per settimana"
+ws["A16"] = "By week"
 ws["A16"].font = SEC_FONT
-header(ws, 17, ["Settimana (dom)"] + car_hdr)
+header(ws, 17, ["Week (Sun)"] + car_hdr)
 WS_ = lambda x: f"({x}-WEEKDAY({x})+1)"
 ws["A18"] = (f"=SEQUENCE(INT(({WS_('Setup!$C$4')}-{WS_('Setup!$C$3')})/7)+1,1,{WS_('Setup!$C$3')},7)")
-load_map(ws, 18, 37, "A", "Turni_Log!$I$2:$I,k")
+load_map(ws, 18, 37, "A", "Shift_Log!$I$2:$I,k")
 for r in range(18, 38):
     ws[f"A{r}"].number_format = DATE
 # c) per giorno (data di inizio turno)
-ws["A40"] = "Per giorno (data di inizio turno)"
+ws["A40"] = "By day (shift start date)"
 ws["A40"].font = SEC_FONT
-header(ws, 41, ["Data inizio turno"] + car_hdr + ["Giorno"])
-ws["A42"] = f'=IFERROR(SORT(UNIQUE(FILTER(Turni_Log!$AA$2:$AA,{LOGY}=1))),"")'
-load_map(ws, 42, 141, "A", "Turni_Log!$AA$2:$AA,k")
+header(ws, 41, ["Shift start date"] + car_hdr + ["Weekday"])
+ws["A42"] = f'=IFERROR(SORT(UNIQUE(FILTER(Shift_Log!$AA$2:$AA,{LOGY}=1))),"")'
+load_map(ws, 42, 141, "A", "Shift_Log!$AA$2:$AA,k")
 ws["K42"] = ('=MAP(A42:A141,LAMBDA(k,IF(k="","",CHOOSE(WEEKDAY(k),'
              + ",".join(f'"{w}"' for w in WEEKDAYS) + "))))")
 for r in range(42, 142):
     ws[f"A{r}"].number_format = DATE
 # d) per agente
-ws["M4"] = "Per agente (assegnazioni per giornata)"
+ws["M4"] = "By agent (assignments per agent-day)"
 ws["M4"].font = SEC_FONT
-header(ws, 5, ["LDAP", "Turno prevalente", "Giornate", "Assegn./giornata", '="Assegn./giornata "&Setup!C7',
-               '="Assegn./giornata "&Setup!C8'] + [f"{w} (inizio turno)" for w in WEEKDAYS], col=13)
+header(ws, 5, ["LDAP", "Main shift", "Agent-days", "Assign./agent-day", '="Assign./agent-day "&Setup!C7',
+               '="Assign./agent-day "&Setup!C8'] + [f"{w} (shift start)" for w in WEEKDAYS], col=13)
 CA1, CA2 = 6, 6 + AGENT_ROWS - 1
 MA = f"M{CA1}:M{CA2}"
-ws[f"M{CA1}"] = f"=ARRAYFORMULA(Agenti!A2:A{AG_END})"
-ws[f"N{CA1}"] = f"=ARRAYFORMULA(Agenti!E2:E{AG_END})"
-ws[f"O{CA1}"] = f'=ARRAYFORMULA(IF({MA}="","",Agenti!C2:C{AG_END}+Agenti!D2:D{AG_END}))'
+ws[f"M{CA1}"] = f"=ARRAYFORMULA(Agents!A2:A{AG_END})"
+ws[f"N{CA1}"] = f"=ARRAYFORMULA(Agents!E2:E{AG_END})"
+ws[f"O{CA1}"] = f'=ARRAYFORMULA(IF({MA}="","",Agents!C2:C{AG_END}+Agents!D2:D{AG_END}))'
 ws[f"P{CA1}"] = (f'=MAP({MA},O{CA1}:O{CA2},LAMBDA(a,n,IF(a="","",IF(n>0,'
-                 f'SUMIFS(Turni_Log!$P$2:$P,{LOGB},a,{LOGY},1)/n,"-"))))')
+                 f'SUMIFS(Shift_Log!$P$2:$P,{LOGB},a,{LOGY},1)/n,"-"))))')
 for col, code in (("Q", C1), ("R", C2)):
-    ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Turni_Log!$P$2:$P,{LOGB},a,{LOGY},1,'
+    ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Shift_Log!$P$2:$P,{LOGB},a,{LOGY},1,'
                          f'{LOGO},{code})/COUNTIFS({LOGB},a,{LOGY},1,{LOGO},{code}),"-"))))')
 for i in range(7):
     col = L_(19 + i)
-    crit = f"{LOGB},a,{LOGY},1,Turni_Log!$AB$2:$AB,{i + 1}"
-    ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Turni_Log!$P$2:$P,{crit})'
+    crit = f"{LOGB},a,{LOGY},1,Shift_Log!$AB$2:$AB,{i + 1}"
+    ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Shift_Log!$P$2:$P,{crit})'
                          f'/COUNTIFS({crit}),"-"))))')
 for c in range(16, 26):
     for r in range(CA1, CA2 + 1):
@@ -913,24 +913,24 @@ widths(ws, {"A": 16, "K": 7, "L": 3, "M": 24, "N": 11, "O": 9})
 for c in "BCDEFGHIJ":
     ws.column_dimensions[c].width = 11
 
-# ---- Rossi_Consecutivi (10)
+# ---- Red_Streaks (10)
 ws = ws_str
-title(ws, "KPI IN ROSSO PER SETTIMANE CONSECUTIVE (ultime 8 settimane)",
-      "Stessa regola del foglio Spotcheck applicata settimana per settimana (media e dev. std della notte "
-      "di quella settimana). Il conteggio parte dall'ultima settimana e si ferma al primo non-ROSSO.")
-header(ws, 4, ["LDAP", "Team Lead"] + [f"Settimane ROSSO {k}" for k in FOCUS] + ["Max"])
+title(ws, "KPIs RED IN CONSECUTIVE WEEKS (last 8 weeks)",
+      "Same rule as the Spotcheck sheet applied week by week (night average and std. dev. "
+      "of that week). The count starts from the latest week and stops at the first non-RED.")
+header(ws, 4, ["LDAP", "Team Lead"] + [f"Weeks RED {k}" for k in FOCUS] + ["Max"])
 S1, S2 = 5, 5 + AGENT_ROWS - 1
 SA = f"$A${S1}:$A${S2}"
-ws[f"A{S1}"] = f"=ARRAYFORMULA(Agenti!A2:A{AG_END})"
-ws[f"B{S1}"] = f"=ARRAYFORMULA(Agenti!B2:B{AG_END})"
+ws[f"A{S1}"] = f"=ARRAYFORMULA(Agents!A2:A{AG_END})"
+ws[f"B{S1}"] = f"=ARRAYFORMULA(Agents!B2:B{AG_END})"
 c = 10
 names = ["ra", "rb", "rc", "rd", "re", "rf", "rg", "rh"]
 for q, k in enumerate(FOCUS):
     num, den, mul = KPI_DEF[k]
     idx = KPI_NAMES.index(k)
     trend_col = L_(3 + 3 * idx)  # colonna "k Tot" del trend in Dashboard
-    ws.cell(3, c, f"{k} - valore settimanale").font = Font(bold=True)
-    ws.cell(3, c + 8, f"{k} - flag settimanale").font = Font(bold=True)
+    ws.cell(3, c, f"{k} - weekly value").font = Font(bold=True)
+    ws.cell(3, c + 8, f"{k} - weekly flag").font = Font(bold=True)
     flag_cols = []
     for w in range(8):
         vc, fc = L_(c + w), L_(c + 8 + w)
@@ -939,7 +939,7 @@ for q, k in enumerate(FOCUS):
             ws[f"{col}4"].number_format = "dd/mm"
             ws[f"{col}4"].fill, ws[f"{col}4"].font = HDR_FILL, HDR_FONT
             ws.column_dimensions[col].width = 8
-        sw = lambda cc, vc=vc: f"SUMIFS(Turni_Log!${cc}$2:${cc},{LOGB},a,Turni_Log!$I$2:$I,{vc}$4)"
+        sw = lambda cc, vc=vc: f"SUMIFS(Shift_Log!${cc}$2:${cc},{LOGB},a,Shift_Log!$I$2:$I,{vc}$4)"
         ws[f"{vc}{S1}"] = f'=MAP({SA},LAMBDA(a,IF(a="","",{kpi_expr(k, sw)})))'
         fmt_col(ws, vc, k, S1, S2)
         v = f"{vc}{S1}:{vc}{S2}"
@@ -951,13 +951,13 @@ for q, k in enumerate(FOCUS):
         else:
             red, yel = f"({v}>{tgt})*({v}>{mean}+Setup!$C$45*{sd})", f"{v}>{tgt}"
         ws[f"{fc}{S1}"] = (f'=ARRAYFORMULA(IF({SA}="","",IF(ISNUMBER({v})*ISNUMBER({mean}),'
-                           f'IF({red},"ROSSO",IF({yel},"GIALLO","VERDE")),"n.s.")))')
+                           f'IF({red},"RED",IF({yel},"YELLOW","GREEN")),"n.s.")))')
         flag_cols.append(f"{fc}{S1}:{fc}{S2}")
     flag_cf(ws, f"{L_(c + 8)}{S1}:{L_(c + 15)}{S2}", f"{L_(c + 8)}{S1}")
     # striscia: dall'ultima settimana (rh) all'indietro
     expr = "8"
     for j in range(0, 8):
-        expr = f'IF({names[j]}<>"ROSSO",{7 - j},{expr})'
+        expr = f'IF({names[j]}<>"RED",{7 - j},{expr})'
     ws[f"{L_(3 + q)}{S1}"] = (f'=MAP({SA},{",".join(flag_cols)},LAMBDA(a,{",".join(names)},'
                               f'IF(a="","",{expr})))')
     c += 17
@@ -969,25 +969,25 @@ ws.freeze_panes = "C5"
 
 # ---- Coaching (9)
 ws = ws_coa
-title(ws, "EFFETTO COACHING - KPI 2 settimane prima vs 2 settimane dopo",
-      "Righe di Spotcheck_Log con 'Coaching fatto?' = Sì e Data spotcheck compilata. Prima = 14 giorni prima della "
-      "Data spotcheck; Dopo = 14 giorni dal giorno successivo. Solo giornate attribuite ai turni notturni. "
-      "'(parziale)' = i 14 giorni dopo non sono ancora tutti nell'estrazione Tableau.")
-header(ws, 4, ["LDAP", "KPI", "Data coaching", "KPI prima", "Volume prima", "KPI dopo", "Volume dopo",
-               "Δ (dopo - prima)", "Esito"])
+title(ws, "COACHING EFFECT - KPI 2 weeks before vs 2 weeks after",
+      "Spotcheck_Log rows with 'Coaching done?' = Yes and Spotcheck date filled in. Before = 14 days before the "
+      "Spotcheck date; After = 14 days from the next day. Only days assigned to night shifts. "
+      "'(partial)' = the 14 days after are not all in the Tableau extraction yet.")
+header(ws, 4, ["LDAP", "KPI", "Coaching date", "KPI before", "Volume before", "KPI after", "Volume after",
+               "Δ (after - before)", "Outcome"])
 K1, K2 = 5, 204
 KA = f"A{K1}:A{K2}"
 SL = "Spotcheck_Log!"
 ws[f"A{K1}"] = (f'=IFERROR(SORT(UNIQUE(FILTER(HSTACK({SL}$B$2:$B,{SL}$D$2:$D,{SL}$J$2:$J),'
-                f'{SL}$I$2:$I="Sì",{SL}$J$2:$J<>"",{SL}$B$2:$B<>"")),3,FALSE,1,TRUE),'
-                '"Nessun coaching registrato in Spotcheck_Log")')
+                f'{SL}$I$2:$I="Yes",{SL}$J$2:$J<>"",{SL}$B$2:$B<>"")),3,FALSE,1,TRUE),'
+                '"No coaching logged in Spotcheck_Log")')
 
 
 def win(s_, e_, what):
-    sw = lambda cc: f'SUMIFS(Turni_Log!${cc}$2:${cc},{LOGB},a,Turni_Log!$A$2:$A,">="&({s_}),Turni_Log!$A$2:$A,"<="&({e_}))'
+    sw = lambda cc: f'SUMIFS(Shift_Log!${cc}$2:${cc},{LOGB},a,Shift_Log!$A$2:$A,">="&({s_}),Shift_Log!$A$2:$A,"<="&({e_}))'
     num = "SWITCH(kp," + ",".join(f'"{k}",{KPI_DEF[k][2]}{sw(MCOL[KPI_DEF[k][0]])}' for k in KPI_NAMES) + ",0)"
     den = "SWITCH(kp," + ",".join(f'"{k}",{sw(MCOL[KPI_DEF[k][1]])}' for k in KPI_NAMES) + ",0)"
-    body = f'LET(nx,{num},dx,{den},IF(dx>0,nx/dx,"n.d."))' if what == "kpi" else den
+    body = f'LET(nx,{num},dx,{den},IF(dx>0,nx/dx,"n/a"))' if what == "kpi" else den
     return f'=MAP({KA},B{K1}:B{K2},C{K1}:C{K2},LAMBDA(a,kp,dc,IF(OR(a="",NOT(ISNUMBER(dc))),"",{body})))'
 
 
@@ -997,22 +997,22 @@ ws[f"F{K1}"] = win("dc+1", "dc+14", "kpi")
 ws[f"G{K1}"] = win("dc+1", "dc+14", "vol")
 ws[f"H{K1}"] = f'=MAP(D{K1}:D{K2},F{K1}:F{K2},LAMBDA(x,y,IF(AND(ISNUMBER(x),ISNUMBER(y)),y-x,"")))'
 ws[f"I{K1}"] = (f'=LET(mx,MAX(Tableau!$I$2:$I),MAP({KA},B{K1}:B{K2},C{K1}:C{K2},H{K1}:H{K2},'
-                'LAMBDA(a,kp,dc,dl,IF(OR(a="",NOT(ISNUMBER(dc))),"",IF(mx<dc+14,"(parziale) ","")&'
-                'IF(dl="","n.d.",IF(dl=0,"Invariato",IF(OR(kp="NPS",kp="Throughput")=(dl>0),'
-                '"Migliorato","Peggiorato")))))))')
-ws["K4"] = "Riepilogo"
+                'LAMBDA(a,kp,dc,dl,IF(OR(a="",NOT(ISNUMBER(dc))),"",IF(mx<dc+14,"(partial) ","")&'
+                'IF(dl="","n/a",IF(dl=0,"Unchanged",IF(OR(kp="NPS",kp="Throughput")=(dl>0),'
+                '"Improved","Worsened")))))))')
+ws["K4"] = "Summary"
 ws["K4"].font = SEC_FONT
-for i, (lab, pat) in enumerate((("Migliorati", "*Migliorato"), ("Peggiorati", "*Peggiorato"),
-                                ("Invariati", "*Invariato"), ("n.d.", "*n.d."))):
+for i, (lab, pat) in enumerate((("Improved", "*Improved"), ("Worsened", "*Worsened"),
+                                ("Unchanged", "*Unchanged"), ("n/a", "*n/a"))):
     ws[f"K{5 + i}"] = lab
     ws[f"L{5 + i}"] = f'=COUNTIF(I{K1}:I{K2},"{pat}")'
 for r in range(K1, K2 + 1):
     ws[f"C{r}"].number_format = DATE
     for col in "DFH":
         ws[f"{col}{r}"].number_format = "0.00"
-ws.conditional_formatting.add(f"I{K1}:I{K2}", FormulaRule(formula=[f'ISNUMBER(SEARCH("Migliorato",I{K1}))'], fill=GREEN))
-ws.conditional_formatting.add(f"I{K1}:I{K2}", FormulaRule(formula=[f'ISNUMBER(SEARCH("Peggiorato",I{K1}))'], fill=RED))
-ws["A3"] = "KPI: Handoff/Pending/Reopen in rapporto (0.08 = 8%), NPS in punti. Per NPS e Throughput Δ > 0 = meglio."
+ws.conditional_formatting.add(f"I{K1}:I{K2}", FormulaRule(formula=[f'ISNUMBER(SEARCH("Improved",I{K1}))'], fill=GREEN))
+ws.conditional_formatting.add(f"I{K1}:I{K2}", FormulaRule(formula=[f'ISNUMBER(SEARCH("Worsened",I{K1}))'], fill=RED))
+ws["A3"] = "KPI: Handoff/Pending/Reopen as ratios (0.08 = 8%), NPS in points. For NPS and Throughput Δ > 0 = better."
 ws["A3"].font = Font(italic=True, color="7F7F7F")
 widths(ws, {"A": 24, "B": 11, "C": 12, "D": 10, "E": 10, "F": 10, "G": 10, "H": 12, "I": 22, "J": 3, "K": 12})
 ws.freeze_panes = "A5"
@@ -1021,39 +1021,39 @@ ws.freeze_panes = "A5"
 ws = ws_med
 med_hdr = [h for _, h in MEDALLIA_COLS]
 header(ws, 1, med_hdr)
-ws["G1"] = ("Incolla qui l'export Medallia da A1 (intestazioni in riga 1). Le colonne usate si impostano in "
-            "Setup C64:C68. Le righe attuali sono DATI DI TEST da cancellare.")
+ws["G1"] = ("Paste the Medallia export here from A1 (headers in row 1). The columns used are set in "
+            "Setup C64:C68. The current rows are TEST DATA to delete.")
 ws["G1"].font = Font(italic=True, color="C00000")
 ws.column_dimensions["B"].number_format = DATE
 med_agents = [a for a in test_agents if a in agent_agg][:8]
 for i in range(16):
     a = med_agents[i % len(med_agents)]
     d = PERIOD_START + dt.timedelta(days=i % 5) if i < 12 else PREV_START + dt.timedelta(days=i % 5)
-    ws.append([a, d, [2, 9, 5, 10, 0, 6, 8, 3, 7, 10, 4, 1, 2, 9, 6, 0][i], f"TEST - commento di prova {i + 1}",
+    ws.append([a, d, [2, 9, 5, 10, 0, 6, 8, 3, 7, 10, 4, 1, 2, 9, 6, 0][i], f"TEST - sample comment {i + 1}",
                f"TEST-{1000 + i}"])
     ws.cell(ws.max_row, 2).number_format = DATE
 widths(ws, {"A": 24, "B": 14, "C": 12, "D": 50, "E": 14})
 ws.freeze_panes = "A2"
 
 ws = ws_set
-header(ws, 63, ["Medallia: campo", "Intestazione colonna nel foglio Medallia"], col=2)
+header(ws, 63, ["Medallia: field", "Column header in the Medallia sheet"], col=2)
 for i, (lab, h) in enumerate(MEDALLIA_COLS):
     ws.cell(64 + i, 2, lab)
     ws.cell(64 + i, 3, h).fill = INPUT_FILL
-ws.cell(69, 2, "Detractor = punteggio minore o uguale a")
+ws.cell(69, 2, "Detractor = score less than or equal to")
 ws.cell(69, 3, DETRACTOR_MAX).fill = INPUT_FILL
-ws["D64"] = ("DA VERIFICARE: scrivi i nomi esatti delle colonne dell'export Medallia. "
-             "LDAP anche come email (la parte dopo @ viene ignorata).")
+ws["D64"] = ("TO VERIFY: enter the exact column names of the Medallia export. "
+             "LDAP can also be an email (the part after @ is ignored).")
 ws["D64"].font = Font(bold=True, color="C00000")
 MED_MATCH = [f"MATCH(Setup!$C${64 + i},Medallia!$A$1:$AZ$1,0)" for i in range(5)]
 
-# ---- Detractor_NPS (15)
+# ---- NPS_Detractors (15)
 ws = ws_det
-title(ws, "DETRACTOR NPS DEGLI AGENTI NOTTURNI (da Medallia)",
-      "Risposte con punteggio ≤ soglia (Setup C69), data nel periodo, agenti presenti in Turni_Log nel periodo. "
-      "Usale per scegliere i casi NPS da controllare; 'Già in Spotcheck_Log' cerca il Case ID nella colonna E.")
-header(ws, 4, ["Data", "LDAP", "Punteggio", "Case ID", "Verbatim", "Team Lead", "Turno attribuito",
-               "Già in Spotcheck_Log?"])
+title(ws, "NPS DETRACTORS OF NIGHT AGENTS (from Medallia)",
+      "Responses with score ≤ threshold (Setup C69), date in the period, agents in Shift_Log in the period. "
+      "Use them to pick the NPS cases to check; 'Already in Spotcheck_Log' looks for the Case ID in column E.")
+header(ws, 4, ["Date", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Assigned shift",
+               "Already in Spotcheck_Log?"])
 D1, D2 = 5, 504
 ws[f"A{D1}"] = (
     '=IFERROR(LET(m,Medallia!$A$2:$AZ$5000,'
@@ -1062,15 +1062,15 @@ ws[f"A{D1}"] = (
     f'sn,MAP(INDEX(m,0,{MED_MATCH[2]}),LAMBDA(x,IF(x="","",IFERROR(VALUE(x),"")))),'
     f'vb,INDEX(m,0,{MED_MATCH[3]}),id,INDEX(m,0,{MED_MATCH[4]}),'
     'ok,MAP(l,dn,sn,LAMBDA(a,b,c,IF(AND(a<>"",ISNUMBER(b),ISNUMBER(c)),'
-    f'AND(b>=Setup!$C$3,b<=Setup!$C$4,c<=Setup!$C$69,COUNTIF(Agenti!$A$2:$A${AG_END},a)>0),FALSE))),'
+    f'AND(b>=Setup!$C$3,b<=Setup!$C$4,c<=Setup!$C$69,COUNTIF(Agents!$A$2:$A${AG_END},a)>0),FALSE))),'
     'SORT(FILTER(HSTACK(dn,l,sn,id,vb),ok),3,TRUE,1,TRUE)),'
-    '"Nessun detractor nel periodo (se Medallia è pieno, verifica le colonne in Setup C64:C68)")')
+    '"No detractors in the period (if Medallia has data, check the columns in Setup C64:C68)")')
 DB = f"B{D1}:B{D2}"
-ws[f"F{D1}"] = f'=MAP({DB},LAMBDA(l,IF(l="","",IFERROR(VLOOKUP(l,Agenti!$A$2:$B${AG_END},2,0),""))))'
+ws[f"F{D1}"] = f'=MAP({DB},LAMBDA(l,IF(l="","",IFERROR(VLOOKUP(l,Agents!$A$2:$B${AG_END},2,0),""))))'
 ws[f"G{D1}"] = (f'=MAP(A{D1}:A{D2},{DB},LAMBDA(d,l,IF(l="","",'
-                f'IFERROR(VLOOKUP(l&"|"&d,Turni_Log!$H$2:$O,8,0),"n.d."))))')
+                f'IFERROR(VLOOKUP(l&"|"&d,Shift_Log!$H$2:$O,8,0),"n/a"))))')
 ws[f"H{D1}"] = (f'=MAP(D{D1}:D{D2},LAMBDA(i,IF(i="","",'
-                f'IF(COUNTIF(Spotcheck_Log!$E$2:$E,"*"&i&"*")>0,"Sì","No"))))')
+                f'IF(COUNTIF(Spotcheck_Log!$E$2:$E,"*"&i&"*")>0,"Yes","No"))))')
 for r in range(D1, D2 + 1):
     ws[f"A{r}"].number_format = DATE
     ws[f"E{r}"].alignment = Alignment(wrap_text=True, vertical="top")
@@ -1080,10 +1080,10 @@ ws.freeze_panes = "A5"
 # ---- Completamento spotcheck per TL (11) - nel foglio Spotcheck
 ws = ws_spot
 TLR1, TLR2 = 18, 47
-header(ws, 17, ["Completamento per TL", "Agenti da controllare", "Casi da campionare", "Casi registrati",
-                "% completamento"], col=19)
+header(ws, 17, ["Completion by TL", "Agents to check", "Cases to sample", "Cases logged",
+                "% completed"], col=19)
 SPB, SPO, SPP = f"$B$5:$B${E}", f"$O$5:$O${E}", f"$P$5:$P${E}"
-ws[f"S{TLR1}"] = f'=IFERROR(SORT(UNIQUE(FILTER(Agenti!B2:B{AG_END},Agenti!A2:A{AG_END}<>"",Agenti!B2:B{AG_END}<>""))),"")'
+ws[f"S{TLR1}"] = f'=IFERROR(SORT(UNIQUE(FILTER(Agents!B2:B{AG_END},Agents!A2:A{AG_END}<>"",Agents!B2:B{AG_END}<>""))),"")'
 TLS = f"S{TLR1}:S{TLR2}"
 ws[f"T{TLR1}"] = f'=MAP({TLS},LAMBDA(t,IF(t="","",COUNTIFS({SPB},t,{SPO},">0"))))'
 ws[f"U{TLR1}"] = f'=MAP({TLS},LAMBDA(t,IF(t="","",SUMIFS({SPO},{SPB},t))))'
@@ -1094,43 +1094,43 @@ for r in range(TLR1, TLR2 + 1):
     ws[f"W{r}"].number_format = "0%"
 ws.conditional_formatting.add(f"W{TLR1}:W{TLR2}", FormulaRule(formula=[f"AND(ISNUMBER(W{TLR1}),W{TLR1}<1)"], fill=RED))
 ws.conditional_formatting.add(f"W{TLR1}:W{TLR2}", FormulaRule(formula=[f"AND(ISNUMBER(W{TLR1}),W{TLR1}>=1)"], fill=GREEN))
-ws[f"S{TLR2 + 1}"] = "Casi registrati = casi in Spotcheck_Log nel periodo, al massimo quelli dovuti per agente."
+ws[f"S{TLR2 + 1}"] = "Cases logged = cases in Spotcheck_Log in the period, capped at the cases due per agent."
 ws[f"S{TLR2 + 1}"].font = Font(italic=True, color="7F7F7F")
 widths(ws, {"V": 11, "W": 13})
 
-# ---- Vista_TL (8)
+# ---- TL_View (8)
 ws = ws_vtl
-title(ws, "VISTA TEAM LEAD")
-ws["A2"] = "Team Lead (vuoto = tutti):"
+title(ws, "TEAM LEAD VIEW")
+ws["A2"] = "Team Lead (empty = all):"
 ws["A2"].font = Font(bold=True)
 ws["B2"].fill = INPUT_FILL
-ws["AB1"] = "Elenco TL"
-ws["AB2"] = f'=IFERROR(SORT(UNIQUE(FILTER(Agenti!B2:B{AG_END},Agenti!A2:A{AG_END}<>"",Agenti!B2:B{AG_END}<>""))),"")'
+ws["AB1"] = "TL list"
+ws["AB2"] = f'=IFERROR(SORT(UNIQUE(FILTER(Agents!B2:B{AG_END},Agents!A2:A{AG_END}<>"",Agents!B2:B{AG_END}<>""))),"")'
 v = DataValidation(type="list", formula1="=$AB$2:$AB$60", allow_blank=True)
 v.add("B2")
 ws.add_data_validation(v)
 sel = lambda rng: f'((({rng}=$B$2)+($B$2=""))*({rng}<>""))>0'
-ws["A3"] = (f'="Agenti: "&COUNTIFS(Spotcheck!{SPB},IF($B$2="","?*",$B$2))&"   |   Casi da campionare: "&'
+ws["A3"] = (f'="Agents: "&COUNTIFS(Spotcheck!{SPB},IF($B$2="","?*",$B$2))&"   |   Cases to sample: "&'
             f'IF($B$2="",SUM(Spotcheck!{SPO}),SUMIFS(Spotcheck!{SPO},Spotcheck!{SPB},$B$2))&'
-            f'"   |   Registrati: "&SUM(MAP(Spotcheck!{SPB},Spotcheck!{SPO},Spotcheck!{SPP},LAMBDA(b,o,p,'
+            f'"   |   Logged: "&SUM(MAP(Spotcheck!{SPB},Spotcheck!{SPO},Spotcheck!{SPP},LAMBDA(b,o,p,'
             f'IF(AND(ISNUMBER(o),IF($B$2="",b<>"",b=$B$2)),MIN(o,p),0))))')
 ws["A3"].font = Font(bold=True, color="1F3864")
 header(ws, 5, sp_hdr)
 V1, V2 = 6, 6 + AGENT_ROWS - 1
 ws[f"A{V1}"] = (f'=IFERROR(FILTER(Spotcheck!A5:Q{E},Spotcheck!A5:A{E}<>"",{sel(f"Spotcheck!B5:B{E}")}),'
-                '"Nessun agente per questo TL")')
+                '"No agents for this TL")')
 for c_ in "EGL":
     ws.column_dimensions[c_].number_format = PCT
 ws.column_dimensions["I"].number_format = NUM1
 for c_ in "FHKM":
     flag_cf(ws, f"{c_}{V1}:{c_}{V2}", f"{c_}{V1}")
-ws.conditional_formatting.add(f"Q{V1}:Q{V2}", FormulaRule(formula=[f'LEFT(Q{V1},7)="Da fare"'], fill=RED))
-ws.conditional_formatting.add(f"Q{V1}:Q{V2}", FormulaRule(formula=[f'Q{V1}="Completato"'], fill=GREEN))
-ws["S4"] = "Detractor NPS da leggere (da Medallia)"
+ws.conditional_formatting.add(f"Q{V1}:Q{V2}", FormulaRule(formula=[f'LEFT(Q{V1},5)="To do"'], fill=RED))
+ws.conditional_formatting.add(f"Q{V1}:Q{V2}", FormulaRule(formula=[f'Q{V1}="Done"'], fill=GREEN))
+ws["S4"] = "NPS detractors to read (from Medallia)"
 ws["S4"].font = SEC_FONT
-header(ws, 5, ["Data", "LDAP", "Punteggio", "Case ID", "Verbatim", "Team Lead", "Turno", "Già in log?"], col=19)
-ws[f"S{V1}"] = (f'=IFERROR(FILTER(Detractor_NPS!A{D1}:H{D2},Detractor_NPS!B{D1}:B{D2}<>"",'
-                f'{sel(f"Detractor_NPS!F{D1}:F{D2}")}),"Nessun detractor")')
+header(ws, 5, ["Date", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Shift", "Already logged?"], col=19)
+ws[f"S{V1}"] = (f'=IFERROR(FILTER(NPS_Detractors!A{D1}:H{D2},NPS_Detractors!B{D1}:B{D2}<>"",'
+                f'{sel(f"NPS_Detractors!F{D1}:F{D2}")}),"No detractors")')
 ws.column_dimensions["S"].number_format = DATE
 widths(ws, {"A": 24, "B": 20, "C": 9, "D": 9, "N": 10, "O": 11, "P": 11, "Q": 14, "R": 3,
             "S": 11, "T": 22, "U": 9, "V": 12, "W": 50, "X": 16, "Y": 9, "Z": 9, "AB": 20})
@@ -1140,44 +1140,44 @@ ws.freeze_panes = "B6"
 
 # ---- Setup: controllo qualità dati (1)
 ws = ws_set
-ws["B50"] = "CONTROLLO QUALITÀ DATI (si aggiorna da solo)"
+ws["B50"] = "DATA QUALITY CHECK (updates automatically)"
 ws["B50"].font = Font(bold=True, size=12, color="C00000")
-header(ws, 51, ["Controllo", "Valore", "Esito", "Dettaglio"], col=2)
+header(ws, 51, ["Check", "Value", "Outcome", "Detail"], col=2)
 TD = "Tableau!$I$2:$I"
 dq = [
-    ("Righe incollate in Tableau", "=COUNTA(Tableau!$A$2:$A)", 'IF(C{r}>0,"OK","ATTENZIONE")',
-     '"Estrazione Dynamic Slicing per LDAP e Day"'),
-    ("Date coperte da Tableau", f'=IFERROR(TEXT(MIN({TD}),"dd/mm/yyyy")&" - "&TEXT(MAX({TD}),"dd/mm/yyyy"),"-")',
-     f'IF(AND(MIN({TD})<=$C$27,MAX({TD})>=$C$4),"OK","ATTENZIONE")',
-     '"Deve coprire periodo + periodo di confronto ("&TEXT($C$27,"dd/mm")&" - "&TEXT($C$4,"dd/mm")&")"'),
-    ("Giorni del periodo senza dati Tableau",
+    ("Rows pasted in Tableau", "=COUNTA(Tableau!$A$2:$A)", 'IF(C{r}>0,"OK","WARNING")',
+     '"Dynamic Slicing extraction by LDAP and Day"'),
+    ("Dates covered by Tableau", f'=IFERROR(TEXT(MIN({TD}),"dd/mm/yyyy")&" - "&TEXT(MAX({TD}),"dd/mm/yyyy"),"-")',
+     f'IF(AND(MIN({TD})<=$C$27,MAX({TD})>=$C$4),"OK","WARNING")',
+     '"Must cover period + comparison period ("&TEXT($C$27,"dd/mm")&" - "&TEXT($C$4,"dd/mm")&")"'),
+    ("Period days without Tableau data",
      f'=LET(d,SEQUENCE($C$4-$C$3+1,1,$C$3),ROWS(d)-SUM(MAP(d,LAMBDA(x,IF(COUNTIF({TD},x)>0,1,0)))))',
-     'IF(C{r}=0,"OK","ATTENZIONE")',
+     'IF(C{r}=0,"OK","WARNING")',
      f'IFERROR(TEXTJOIN(", ",TRUE,MAP(FILTER(SEQUENCE($C$4-$C$3+1,1,$C$3),MAP(SEQUENCE($C$4-$C$3+1,1,$C$3),'
      f'LAMBDA(x,COUNTIF({TD},x)=0))),LAMBDA(x,TEXT(x,"dd/mm")))),"")'),
-    ("Misure mancanti nell'estrazione (Setup C30:C38)",
+    ("Measures missing from the extraction (Setup C30:C38)",
      '=SUM(MAP($C$30:$C$38,LAMBDA(m,IF(COUNTIF(Tableau!$E$2:$E,m)=0,1,0))))',
-     'IF(C{r}=0,"OK","ATTENZIONE")',
+     'IF(C{r}=0,"OK","WARNING")',
      'IFERROR(TEXTJOIN(", ",TRUE,UNIQUE(FILTER($C$30:$C$38,MAP($C$30:$C$38,LAMBDA(m,COUNTIF(Tableau!$E$2:$E,m)=0))))),"")'),
-    ("Agenti in Tableau (nel periodo) assenti da Turni_Log - ignorati",
+    ("Agents in Tableau (in period) not in Shift_Log - ignored",
      f'=IFERROR(ROWS(FILTER(UNIQUE(FILTER(Tableau!$A$2:$A,{TD}>=$C$3,{TD}<=$C$4)),'
      f'MAP(UNIQUE(FILTER(Tableau!$A$2:$A,{TD}>=$C$3,{TD}<=$C$4)),LAMBDA(a,COUNTIF({LOGB},a)=0)))),0)',
      'IF(C{r}=0,"OK","INFO")',
      f'IFERROR(TEXTJOIN(", ",TRUE,FILTER(UNIQUE(FILTER(Tableau!$A$2:$A,{TD}>=$C$3,{TD}<=$C$4)),'
      f'MAP(UNIQUE(FILTER(Tableau!$A$2:$A,{TD}>=$C$3,{TD}<=$C$4)),LAMBDA(a,COUNTIF({LOGB},a)=0)))),"")'),
-    ("Giornate notte in Turni_Log senza righe Tableau", "=COUNTIFS(Turni_Log!$Y$2:$Y,1,Turni_Log!$Z$2:$Z,0)",
-     'IF(C{r}=0,"OK","VERIFICA")',
-     'IFERROR(TEXTJOIN(", ",TRUE,UNIQUE(FILTER(Turni_Log!$B$2:$B,Turni_Log!$Y$2:$Y=1,Turni_Log!$Z$2:$Z=0))),"")'),
-    ("Righe duplicate in Turni_Log (stesso LDAP e data)",
-     '=COUNTIF(Turni_Log!$H$2:$H,"?*")-IFERROR(ROWS(UNIQUE(FILTER(Turni_Log!$H$2:$H,Turni_Log!$H$2:$H<>""))),0)',
-     'IF(C{r}=0,"OK","ATTENZIONE")', '"Le righe doppie raddoppiano i numeri: cancellale da Turni_Log"'),
-    ("Righe di TEST in Turni_Log", '=COUNTIF(Turni_Log!$G$2:$G,"TEST")', 'IF(C{r}=0,"OK","ATTENZIONE")',
-     '"Dati fittizi: filtra Fonte = TEST e cancellali prima dell\'uso reale"'),
-    ("Agenti del periodo senza Team Lead", f'=COUNTIFS(Agenti!$A$2:$A${AG_END},"?*",Agenti!$B$2:$B${AG_END},"")',
-     'IF(C{r}=0,"OK","VERIFICA")', '"Servono per Vista_TL e completamento per TL"'),
-    ("Colonne Medallia trovate (Setup C64:C68)", "=" + "+".join(f"ISNUMBER({m})" for m in MED_MATCH) + "",
-     'IF(COUNTA(Medallia!$A$2:$A)=0,"INFO",IF(C{r}=5,"OK","ATTENZIONE"))',
-     '"Su 5. INFO = foglio Medallia vuoto"'),
+    ("Night agent-days in Shift_Log without Tableau rows", "=COUNTIFS(Shift_Log!$Y$2:$Y,1,Shift_Log!$Z$2:$Z,0)",
+     'IF(C{r}=0,"OK","CHECK")',
+     'IFERROR(TEXTJOIN(", ",TRUE,UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$Y$2:$Y=1,Shift_Log!$Z$2:$Z=0))),"")'),
+    ("Duplicate rows in Shift_Log (same LDAP and date)",
+     '=COUNTIF(Shift_Log!$H$2:$H,"?*")-IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$H$2:$H,Shift_Log!$H$2:$H<>""))),0)',
+     'IF(C{r}=0,"OK","WARNING")', '"Duplicate rows double the numbers: delete them from Shift_Log"'),
+    ("TEST rows in Shift_Log", '=COUNTIF(Shift_Log!$G$2:$G,"TEST")', 'IF(C{r}=0,"OK","WARNING")',
+     '"Dummy data: filter Source = TEST and delete them before real use"'),
+    ("Period agents without Team Lead", f'=COUNTIFS(Agents!$A$2:$A${AG_END},"?*",Agents!$B$2:$B${AG_END},"")',
+     'IF(C{r}=0,"OK","CHECK")', '"Needed for TL_View and completion by TL"'),
+    ("Medallia columns found (Setup C64:C68)", "=" + "+".join(f"ISNUMBER({m})" for m in MED_MATCH) + "",
+     'IF(COUNTA(Medallia!$A$2:$A)=0,"INFO",IF(C{r}=5,"OK","WARNING"))',
+     '"Out of 5. INFO = Medallia sheet empty"'),
 ]
 DQ1 = 52
 for i, (lab, val, esito, det) in enumerate(dq):
@@ -1187,38 +1187,38 @@ for i, (lab, val, esito, det) in enumerate(dq):
     ws.cell(r, 4, "=" + esito.format(r=r))
     ws.cell(r, 5, "=" + det)
 DQ2 = DQ1 + len(dq) - 1
-for t, fill in (("ATTENZIONE", RED), ("VERIFICA", YELLOW), ("INFO", YELLOW), ("OK", GREEN)):
+for t, fill in (("WARNING", RED), ("CHECK", YELLOW), ("INFO", YELLOW), ("OK", GREEN)):
     ws.conditional_formatting.add(f"D{DQ1}:D{DQ2}", FormulaRule(formula=[f'D{DQ1}="{t}"'], fill=fill))
-ws["B2"] = f"Controllo qualità dati: riga {DQ1 - 2}   |   Mappatura Medallia: riga 63"
+ws["B2"] = f"Data quality check: row {DQ1 - 2}   |   Medallia mapping: row 63"
 ws["B2"].font = Font(italic=True, color="C00000")
 
 # ---- Dashboard: stato qualità dati + sintesi automatica (13)
 ws = ws_dash
-DQCNT = f'COUNTIF(Setup!$D${DQ1}:$D${DQ2},"ATTENZIONE")'
-ws["B3"] = (f'=IF({DQCNT}>0,"⚠ Qualità dati: "&{DQCNT}&" avvisi - vedi Setup riga {DQ1 - 2}",'
-            '"Qualità dati: nessun avviso bloccante")')
+DQCNT = f'COUNTIF(Setup!$D${DQ1}:$D${DQ2},"WARNING")'
+ws["B3"] = (f'=IF({DQCNT}>0,"⚠ Data quality: "&{DQCNT}&" warnings - see Setup row {DQ1 - 2}",'
+            '"Data quality: no blocking warnings")')
 ws.conditional_formatting.add("B3", FormulaRule(formula=['LEFT(B3,1)="⚠"'], fill=RED))
-ws["B22"] = "Sintesi automatica"
+ws["B22"] = "Automatic summary"
 ws["B22"].font = SEC_FONT
 lst = lambda cond, none: f'IFERROR(TEXTJOIN(", ",TRUE,FILTER($B$5:$B$10,{cond})),"{none}")'
 better = lambda sign: (f'MAP($F$5:$F$10,Setup!$D$20:$D$25,LAMBDA(f,d,IF(ISNUMBER(f),'
-                       f'IF(d="Alto",f{sign}0,f{"<" if sign == ">" else ">"}0),FALSE)))')
+                       f'IF(d="High",f{sign}0,f{"<" if sign == ">" else ">"}0),FALSE)))')
 capped = (f'SUM(MAP(Spotcheck!{SPO},Spotcheck!{SPP},LAMBDA(o,p,IF(ISNUMBER(o),MIN(o,p),0))))')
-IN_T, OUT_T = '$H$5:$H$10="In target"', '$H$5:$H$10="Fuori target"'
-MIG, PEG = '$O$5:$O$10="Migliora"', '$O$5:$O$10="Peggiora"'
+IN_T, OUT_T = '$H$5:$H$10="On target"', '$H$5:$H$10="Off target"'
+MIG, PEG = '$O$5:$O$10="Better"', '$O$5:$O$10="Worse"'
 summary = [
-    ('="Periodo "&TEXT(Setup!C3,"dd/mm")&"-"&TEXT(Setup!C4,"dd/mm")&": "&TEXT(C13,"#,##0")&" assegnazioni in "&'
-     'C16&" giornate-agente ("&C17&" agenti), periodo precedente "&TEXT(I13,"#,##0")&". "&Setup!C7&": "&'
-     'TEXT(D18,"0.0")&" assegnazioni per giornata, "&Setup!C8&": "&TEXT(E18,"0.0")&"."'),
-    f'="In target: "&{lst(IN_T, "nessun KPI")}&". Fuori target: "&{lst(OUT_T, "nessuno")}&"."',
-    (f'="Confronto turni: "&Setup!C7&" meglio di "&Setup!C8&" su "&{lst(better(">"), "nessun KPI")}&'
-     f'"; peggio su "&{lst(better("<"), "nessun KPI")}&"."'),
-    (f'="Rispetto al periodo precedente migliorano: "&{lst(MIG, "nessun KPI")}&'
-     f'"; peggiorano: "&{lst(PEG, "nessun KPI")}&"."'),
-    (f'="Spotcheck: "&COUNTIF(Agenti!$Y$2:$Y${AG_END},">=3")&" agenti con almeno un KPI ROSSO, "&'
-     f'SUM(Agenti!$Z$2:$Z${AG_END})&" casi da campionare, completamento "&'
-     f'IFERROR(TEXT({capped}/SUM(Spotcheck!{SPO}),"0%"),"-")&". Agenti in ROSSO da 2+ settimane consecutive: "&'
-     f'COUNTIF(Rossi_Consecutivi!$G${S1}:$G${S2},">=2")&"."'),
+    ('="Period "&TEXT(Setup!C3,"dd/mm")&"-"&TEXT(Setup!C4,"dd/mm")&": "&TEXT(C13,"#,##0")&" assignments in "&'
+     'C16&" agent-days ("&C17&" agents), previous period "&TEXT(I13,"#,##0")&". "&Setup!C7&": "&'
+     'TEXT(D18,"0.0")&" assignments per agent-day, "&Setup!C8&": "&TEXT(E18,"0.0")&"."'),
+    f'="On target: "&{lst(IN_T, "no KPI")}&". Off target: "&{lst(OUT_T, "none")}&"."',
+    (f'="Shift comparison: "&Setup!C7&" better than "&Setup!C8&" on "&{lst(better(">"), "no KPI")}&'
+     f'"; worse on "&{lst(better("<"), "no KPI")}&"."'),
+    (f'="Vs previous period, improving: "&{lst(MIG, "no KPI")}&'
+     f'"; worsening: "&{lst(PEG, "no KPI")}&"."'),
+    (f'="Spotcheck: "&COUNTIF(Agents!$Y$2:$Y${AG_END},">=3")&" agents with at least one RED KPI, "&'
+     f'SUM(Agents!$Z$2:$Z${AG_END})&" cases to sample, completion "&'
+     f'IFERROR(TEXT({capped}/SUM(Spotcheck!{SPO}),"0%"),"-")&". Agents RED for 2+ consecutive weeks: "&'
+     f'COUNTIF(Red_Streaks!$G${S1}:$G${S2},">=2")&"."'),
 ]
 for i, f in enumerate(summary):
     ws[f"B{23 + i}"] = f
@@ -1231,91 +1231,91 @@ ws = ws_readme
 lines = [
     ("R2 NIGHT SHIFT - PERFORMANCE (18-3 vs 21-6)", "title"),
     ("", None),
-    ("A COSA SERVE", "sec"),
-    ("Analizza le performance dei turni notturni R2 (18-3 e 21-6) insieme e separati: "
-     "Throughput, NPS, Handoff, Pending, Reopen, Recontact. Il foglio Spotcheck dice a ogni TL quali agenti "
-     "e quanti casi controllare, con focus su Handoff, Pending, NPS e Reopen.", None),
+    ("PURPOSE", "sec"),
+    ("Analyses the performance of the R2 night shifts (18-3 and 21-6), together and split: "
+     "Throughput, NPS, Handoff, Pending, Reopen, Recontact. The Spotcheck sheet tells each TL which agents "
+     "and how many cases to check, with focus on Handoff, Pending, NPS and Reopen.", None),
     ("", None),
-    ("PROCEDURA SETTIMANALE", "sec"),
-    ("1. Tableau (Dynamic Slicing, breakdown per LDAP, colonna = Day): esporta i dati e incollali in 'Tableau' da A1. "
-     "Sostituisci solo A:G, la colonna H è una formula.", None),
-    ("   Misure necessarie (nomi in Setup C30:C38): assignments_completed, cases_solved_excluding_bot_only, "
+    ("WEEKLY PROCEDURE", "sec"),
+    ("1. Tableau (Dynamic Slicing, breakdown by LDAP, column = Day): export the data and paste it into 'Tableau' "
+     "from A1. Replace only A:G; columns H:J are formulas.", None),
+    ("   Required measures (names in Setup C30:C38): assignments_completed, cases_solved_excluding_bot_only, "
      "pend_events, transfer_handoffs, case_reopen, case_solves, interaction_specialist_recontacts, "
      "nps_responses, nps_net_promoters.", None),
-    ("2. Schedules: incolla il foglio Schedules della nuova settimana in 'Schedules' da A1 (stesse colonne).", None),
-    ("3. 'Nuova_Settimana' si calcola da sola: copia A2:G e incolla SOLO VALORI in fondo a 'Turni_Log' "
-     "(Turni_Log è lo storico: non cancellare le settimane precedenti).", None),
-    ("4. Medallia: incolla l'export delle risposte NPS in 'Medallia' da A1 (verifica una volta i nomi delle "
-     "colonne in Setup C64:C68).", None),
-    ("5. In 'Setup' imposta Data inizio / Data fine (di solito una settimana, dom-sab): il confronto usa il periodo "
-     "precedente di pari durata. Controlla il box 'CONTROLLO QUALITÀ DATI' in Setup (riga 50).", None),
-    ("6. Leggi 'Dashboard' e 'Spotcheck'; ogni TL usa 'Vista_TL' e registra i controlli in 'Spotcheck_Log'.", None),
+    ("2. Schedules: paste the new week's Schedules sheet into 'Schedules' from A1 (same columns).", None),
+    ("3. 'New_Week' calculates itself: copy A2:G and paste VALUES ONLY at the bottom of 'Shift_Log' "
+     "(Shift_Log is the history: do not delete previous weeks).", None),
+    ("4. Medallia: paste the NPS responses export into 'Medallia' from A1 (check the column names once "
+     "in Setup C64:C68).", None),
+    ("5. In 'Setup' set the start / end date (usually one week, Sun-Sat): the comparison uses the previous "
+     "period of the same length. Check the 'DATA QUALITY CHECK' box in Setup (row 50).", None),
+    ("6. Read 'Dashboard' and 'Spotcheck'; each TL uses 'TL_View' and logs the checks in 'Spotcheck_Log'.", None),
     ("", None),
-    ("FOGLI DI ANALISI", "sec"),
-    ("Dashboard: KPI totale / 18-3 / 21-6, confronto con il periodo precedente (Δ e Migliora/Peggiora), volumi, "
-     "sintesi automatica in testo, trend 8 settimane. In alto lo stato della qualità dati.", None),
-    ("Spotcheck: priorità per agente + completamento per TL (casi dovuti vs registrati) + root cause.", None),
-    ("Vista_TL: scegli il TL in B2: i suoi agenti da controllare, lo stato e i detractor NPS da leggere.", None),
-    ("Rotazione: per gli agenti che fanno entrambi i turni, KPI nei giorni 18-3 vs nei giorni 21-6 "
-     "(stesso agente = confronto più pulito tra i turni).", None),
-    ("Carico: assegnazioni per giornata-agente per giorno della settimana, per settimana, per data e per agente.", None),
-    ("Rossi_Consecutivi: per agente e KPI (Handoff, Pending, NPS, Reopen) quante settimane di fila è ROSSO; "
-     "2+ settimane = problema strutturale, non un caso isolato.", None),
-    ("Coaching: per ogni coaching registrato (Coaching fatto? = Sì) il KPI nei 14 giorni prima e nei 14 dopo.", None),
-    ("Detractor_NPS: risposte 0-6 di Medallia per gli agenti notturni nel periodo, con verbatim: da qui si "
-     "scelgono i casi NPS dello spotcheck.", None),
+    ("ANALYSIS SHEETS", "sec"),
+    ("Dashboard: KPIs total / 18-3 / 21-6, comparison with the previous period (Δ and Better/Worse), volumes, "
+     "automatic text summary, 8-week trend. The data quality status is at the top.", None),
+    ("Spotcheck: priority by agent + completion by TL (cases due vs logged) + root causes.", None),
+    ("TL_View: pick the TL in B2 to see their agents to check, the status and the NPS detractors to read.", None),
+    ("Rotation: for agents working both shifts, KPIs on their 18-3 days vs their 21-6 days "
+     "(same agent = cleaner comparison between shifts).", None),
+    ("Workload: assignments per agent-day by weekday, by week, by date and by agent.", None),
+    ("Red_Streaks: for each agent and KPI (Handoff, Pending, NPS, Reopen), how many weeks in a row it is RED; "
+     "2+ weeks = structural problem, not an isolated case.", None),
+    ("Coaching: for each logged coaching (Coaching done? = Yes), the KPI in the 14 days before and the 14 after.", None),
+    ("NPS_Detractors: Medallia 0-6 responses for night agents in the period, with verbatims: use them to "
+     "pick the NPS cases for the spotcheck.", None),
     ("", None),
-    ("COME VIENE ATTRIBUITO IL TURNO", "sec"),
-    ("Tableau ha solo il giorno, mentre i turni passano la mezzanotte. La giornata Tableau D di un agente viene "
-     "attribuita al turno che vi lavora più ore: il turno iniziato il giorno D (18-3 = 6h, 21-6 = 3h) oppure "
-     "quello iniziato il giorno D-1 (18-3 = 3h, 21-6 = 6h). A parità vince il turno del giorno D. Se il turno "
-     "prevalente è diurno la giornata è 'Altro' ed è esclusa.", None),
-    ("Special Assignment inclusi. Tier esclusi in Setup (ora: Premium Support).", None),
+    ("HOW THE SHIFT IS ASSIGNED", "sec"),
+    ("Tableau only has the day, while shifts cross midnight. An agent's Tableau day D is assigned to the shift "
+     "that works the most hours on it: the shift started on day D (18-3 = 6h, 21-6 = 3h) or the one started on "
+     "day D-1 (18-3 = 3h, 21-6 = 6h). On a tie, the day-D shift wins. If the main shift is a day shift, the day "
+     "is 'Other' and is excluded.", None),
+    ("Special Assignments included. Tiers excluded in Setup (currently: Premium Support).", None),
     ("", None),
-    ("DEFINIZIONI KPI (Data Dictionary - Metrics)", "sec"),
+    ("KPI DEFINITIONS (Data Dictionary - Metrics)", "sec"),
     ("Throughput = cs_cases_solved_excluding_bot_only / cs_ambassador_case_assignments_completed", None),
     ("NPS = 100 × cs_customer_nps_net_promoters / cs_customer_nps_responses", None),
     ("Handoff = cs_ambassador_transfer_handoffs / cs_ambassador_case_assignments_completed", None),
     ("Pending = cs_ambassador_pend_events / cs_ambassador_case_assignments_completed", None),
     ("Reopen = cs_case_reopen / cs_ambassador_case_solves", None),
     ("Recontact = cs_interaction_specialist_recontacts / cs_ambassador_case_assignments_completed", None),
-    ("I KPI si calcolano sempre come somma numeratori / somma denominatori (mai media di percentuali).", None),
-    ("Target: EMEA 2026 H2 CS Delivery Targets, Resolutions 2 (NPS: Resolutions 2 Italian). "
-     "Modificabili in Setup.", None),
+    ("KPIs are always calculated as sum of numerators / sum of denominators (never an average of percentages).", None),
+    ("Targets: EMEA 2026 H2 CS Delivery Targets, Resolutions 2 (NPS: Resolutions 2 Italian). "
+     "Editable in Setup.", None),
     ("", None),
-    ("SPOTCHECK: COME FUNZIONA", "sec"),
-    ("Semaforo per agente su Handoff, Pending, NPS, Reopen: ROSSO = fuori target e anche oltre la media della notte "
-     "di k deviazioni standard (outlier vero); GIALLO = solo fuori target; VERDE = in target; n.s. = volume troppo "
-     "basso per giudicare (soglie in Setup).", None),
-    ("Punteggio = 3 × ROSSI + GIALLI: la lista è ordinata per priorità. "
-     "Casi da campionare = 3 per ogni ROSSO + 1 per ogni GIALLO (modificabile).", None),
-    ("Ogni caso controllato va registrato in Spotcheck_Log: la colonna 'Stato' del foglio Spotcheck mostra "
-     "cosa resta da fare, a destra c'è il riepilogo delle root cause.", None),
+    ("SPOTCHECK: HOW IT WORKS", "sec"),
+    ("Traffic light per agent on Handoff, Pending, NPS, Reopen: RED = off target and also beyond the night average "
+     "by k standard deviations (true outlier); YELLOW = off target only; GREEN = on target; n.s. = volume too "
+     "low to judge (thresholds in Setup).", None),
+    ("Score = 3 × RED + YELLOW: the list is sorted by priority. "
+     "Cases to sample = 3 per RED + 1 per YELLOW (editable).", None),
+    ("Every checked case must be logged in Spotcheck_Log: the 'Status' column of the Spotcheck sheet shows "
+     "what is left to do; the root cause summary is on the right.", None),
     ("", None),
-    ("COSA CONTROLLARE NEI CASI", "sec"),
-    ("Handoff: era evitabile? Avviene a fine turno (03:00 / 06:00)? Nei notturni è il rischio tipico: "
-     "casi passati al turno successivo invece di chiuderli o metterli in pend correttamente.", None),
-    ("Pending: il pend era necessario? Il next step è chiaro per l'utente e per chi riprende il caso? "
-     "Si ripete sullo stesso caso? (è anche il punto di partenza per misurare gli 'unresponsive users').", None),
-    ("NPS: leggi i verbatim dei detractor (0-6) e distingui colpa agente / policy / prodotto.", None),
-    ("Reopen: perché il caso è stato riaperto? Soluzione incompleta, comunicazione poco chiara, chiusura "
-     "prematura (es. chiuso a fine turno senza conferma utente).", None),
-    ("Altre idee: calibrazione settimanale tra TL su 2-3 casi comuni; confronto 18-3 vs 21-6 sulle fasce di "
-     "sovrapposizione 21-03; trend a 4 settimane dopo il coaching per vedere se il KPI migliora.", None),
+    ("WHAT TO CHECK IN THE CASES", "sec"),
+    ("Handoff: was it avoidable? Does it happen at the end of the shift (03:00 / 06:00)? This is the typical night "
+     "risk: cases passed to the next shift instead of being solved or pended correctly.", None),
+    ("Pending: was the pend needed? Is the next step clear for the user and for whoever picks up the case? "
+     "Does it repeat on the same case? (also the starting point to measure 'unresponsive users').", None),
+    ("NPS: read the detractor verbatims (0-6) and separate agent fault / policy / product.", None),
+    ("Reopen: why was the case reopened? Incomplete solution, unclear communication, premature closure "
+     "(e.g. closed at the end of the shift without user confirmation).", None),
+    ("Other ideas: weekly calibration between TLs on 2-3 shared cases; 18-3 vs 21-6 comparison on the "
+     "21-03 overlap; 4-week trend after coaching to see whether the KPI improves.", None),
     ("", None),
-    ("NOTE APERTE", "sec"),
-    ("- Reopen: cs_ambassador_case_solves non è ancora nell'estrazione. Per ora il denominatore è "
-     "cs_cases_solved_excluding_bot_only: appena disponibile, cambiare Setup C35.", None),
-    ("- Unresponsive users: in sospeso, nessun campo disponibile. La root cause 'Utente non risponde' in "
-     "Spotcheck_Log permette già di iniziare a contarli.", None),
-    ("- Limiti: le formule leggono fino a 5000 righe di Turni_Log (circa 35-40 settimane) e 40000 righe di "
-     "Tableau. Oltre, archivia le settimane vecchie in un altro file.", None),
-    ("- DATI DI TEST: Turni_Log contiene righe con Fonte = TEST (turni fittizi assegnati agli agenti "
-     "dell'estrazione di prova 13-24/09) per provare le formule. Prima dell'uso reale filtra Fonte = TEST, "
-     "cancella quelle righe e sostituisci i dati in 'Tableau'. Sono di test anche le righe di 'Medallia' e le "
-     "2 righe TEST di 'Spotcheck_Log'.", None),
-    ("- Medallia: la struttura dell'export non è ancora verificata. Se i nomi delle colonne sono diversi, "
-     "correggili in Setup C64:C68 (il box qualità dati dice quante colonne vengono trovate).", None),
+    ("OPEN NOTES", "sec"),
+    ("- Reopen: cs_ambassador_case_solves is not in the extraction yet. For now the denominator is "
+     "cs_cases_solved_excluding_bot_only: as soon as it is available, change Setup C35.", None),
+    ("- Unresponsive users: on hold, no field available. The 'User not responding' root cause in "
+     "Spotcheck_Log already lets you start counting them.", None),
+    ("- Limits: formulas read up to 5000 rows of Shift_Log (about 35-40 weeks) and 40000 rows of "
+     "Tableau. Beyond that, archive old weeks in another file.", None),
+    ("- TEST DATA: Shift_Log contains rows with Source = TEST (dummy shifts assigned to the agents "
+     "of the 13-24/09 test extraction) to try the formulas. Before real use, filter Source = TEST, "
+     "delete those rows and replace the data in 'Tableau'. The 'Medallia' rows and the 2 TEST rows in "
+     "'Spotcheck_Log' are test data too.", None),
+    ("- Medallia: the export structure is not verified yet. If the column names differ, "
+     "fix them in Setup C64:C68 (the data quality box shows how many columns are found).", None),
 ]
 for i, (t, kind) in enumerate(lines, start=1):
     c = ws.cell(i, 2, t)
@@ -1349,7 +1349,7 @@ for sh, row, col in ((ws_tab, 40001, "L"), (ws_tl, 5001, "AD"), (ws_new, 1101, "
                      (ws_vtl, V2 + 2, "AD"), (ws_rot, R2 + 2, "Z"), (ws_car, CA2 + 5, "A"),
                      (ws_str, S2 + 2, "A"), (ws_coa, K2 + 2, "A"), (ws_det, D2 + 2, "A")):
     cell = sh[f"{col}{row}"]
-    cell.value = "fine area formule"
+    cell.value = "end of formula area"
     cell.font = Font(italic=True, color="BFBFBF")
 for sh in wb.worksheets:
     for dv in sh.data_validations.dataValidation:
