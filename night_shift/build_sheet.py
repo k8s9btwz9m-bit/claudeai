@@ -1131,7 +1131,8 @@ ws["S4"].font = SEC_FONT
 header(ws, 5, ["Date", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Shift", "Already logged?"], col=19)
 ws[f"S{V1}"] = (f'=IFERROR(FILTER(NPS_Detractors!A{D1}:H{D2},NPS_Detractors!B{D1}:B{D2}<>"",'
                 f'{sel(f"NPS_Detractors!F{D1}:F{D2}")}),"No detractors")')
-ws.column_dimensions["S"].number_format = DATE
+for r in range(V1, V2 + 1):
+    ws[f"S{r}"].number_format = DATE
 widths(ws, {"A": 24, "B": 20, "C": 9, "D": 9, "N": 10, "O": 11, "P": 11, "Q": 14, "R": 3,
             "S": 11, "T": 22, "U": 9, "V": 12, "W": 50, "X": 16, "Y": 9, "Z": 9, "AB": 20})
 for c_ in "EFGHIJKLM":
