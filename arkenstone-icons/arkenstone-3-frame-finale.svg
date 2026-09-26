@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-448 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#2E333B"/>
+      <stop offset="1" stop-color="#1A1D22"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#A9D8F6" stop-opacity="0.28"/>
+      <stop offset="0.6" stop-color="#A9D8F6" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#A9D8F6" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="squircle"><rect width="1024" height="1024" rx="228"/></clipPath>
+    <linearGradient id="table" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E2E6EC"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#DCF0FD"/><stop offset="1" stop-color="#6DB6E4"/>
+    </linearGradient>
+    <clipPath id="tableclip"><polygon points="577.8,361.1 670.9,454.2 670.9,585.8 577.8,678.9 446.2,678.9 353.1,585.8 353.1,454.2 446.2,361.1"/></clipPath>
+  </defs>
+  <rect x="-448" width="1920" height="1080" fill="#FFFFFF"/>
+  <g transform="translate(512 540) scale(0.62) translate(-512 -520)">
+
+    <circle cx="512" cy="520" r="420" fill="url(#halo)"/>
+    <ellipse cx="512" cy="872" rx="220" ry="18" fill="#2E333B" opacity="0.10"/>
+    <polygon points="577.8,361.1 670.9,454.2 719.7,312.3" fill="#E2E6EC"/>
+    <polygon points="633.7,226.2 719.7,312.3 577.8,361.1" fill="#E2E6EC"/>
+    <polygon points="719.7,312.3 805.8,398.3 670.9,454.2" fill="#C8CED7"/>
+    <polygon points="670.9,454.2 670.9,585.8 805.8,520" fill="#C8CED7"/>
+    <polygon points="805.8,398.3 805.8,520 670.9,454.2" fill="#A7AFBB"/>
+    <polygon points="805.8,520 805.8,641.7 670.9,585.8" fill="#A7AFBB"/>
+    <polygon points="670.9,585.8 577.8,678.9 719.7,727.7" fill="#A7AFBB"/>
+    <polygon points="805.8,641.7 719.7,727.7 670.9,585.8" fill="#838C99"/>
+    <polygon points="719.7,727.7 633.7,813.8 577.8,678.9" fill="#838C99"/>
+    <polygon points="577.8,678.9 446.2,678.9 512,813.8" fill="#C8CED7"/>
+    <polygon points="633.7,813.8 512,813.8 577.8,678.9" fill="#838C99"/>
+    <polygon points="512,813.8 390.3,813.8 446.2,678.9" fill="#A7AFBB"/>
+    <polygon points="446.2,678.9 353.1,585.8 304.3,727.7" fill="#C8CED7"/>
+    <polygon points="390.3,813.8 304.3,727.7 446.2,678.9" fill="#A7AFBB"/>
+    <polygon points="304.3,727.7 218.2,641.7 353.1,585.8" fill="#C8CED7"/>
+    <polygon points="353.1,585.8 353.1,454.2 218.2,520" fill="#E2E6EC"/>
+    <polygon points="218.2,641.7 218.2,520 353.1,585.8" fill="#E2E6EC"/>
+    <polygon points="218.2,520 218.2,398.3 353.1,454.2" fill="#F4F6F9"/>
+    <polygon points="353.1,454.2 446.2,361.1 304.3,312.3" fill="#F4F6F9"/>
+    <polygon points="218.2,398.3 304.3,312.3 353.1,454.2" fill="#F4F6F9"/>
+    <polygon points="304.3,312.3 390.3,226.2 446.2,361.1" fill="#F4F6F9"/>
+    <polygon points="446.2,361.1 577.8,361.1 512,226.2" fill="#C8CED7"/>
+    <polygon points="390.3,226.2 512,226.2 446.2,361.1" fill="#F4F6F9"/>
+    <polygon points="512,226.2 633.7,226.2 577.8,361.1" fill="#E2E6EC"/>
+    <polygon points="670.9,454.2 670.9,585.8 805.8,520" fill="url(#accent)"/>
+    <polygon points="805.8,520 805.8,641.7 670.9,585.8" fill="#A9D8F6" opacity="0.55"/>
+    <path d="M633.7,226.2 L577.8,361.1 M719.7,312.3 L577.8,361.1 M719.7,312.3 L670.9,454.2 M805.8,398.3 L670.9,454.2 M805.8,520 L670.9,454.2 M805.8,520 L670.9,585.8 M805.8,641.7 L670.9,585.8 M719.7,727.7 L670.9,585.8 M719.7,727.7 L577.8,678.9 M633.7,813.8 L577.8,678.9 M512,813.8 L577.8,678.9 M512,813.8 L446.2,678.9 M390.3,813.8 L446.2,678.9 M304.3,727.7 L446.2,678.9 M304.3,727.7 L353.1,585.8 M218.2,641.7 L353.1,585.8 M218.2,520 L353.1,585.8 M218.2,520 L353.1,454.2 M218.2,398.3 L353.1,454.2 M304.3,312.3 L353.1,454.2 M304.3,312.3 L446.2,361.1 M390.3,226.2 L446.2,361.1 M512,226.2 L446.2,361.1 M512,226.2 L577.8,361.1 " stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="2" fill="none" stroke-linejoin="round"/>
+    <polygon points="633.7,226.2 805.8,398.3 805.8,641.7 633.7,813.8 390.3,813.8 218.2,641.7 218.2,398.3 390.3,226.2" fill="none" stroke="#5F6773" stroke-width="5" stroke-linejoin="round"/>
+    <polygon points="577.8,361.1 670.9,454.2 670.9,585.8 577.8,678.9 446.2,678.9 353.1,585.8 353.1,454.2 446.2,361.1" fill="url(#table)"/>
+    <path d="M448.9,348 V692 M340,456.9 H684 M575.1,348 V692 M340,583.1 H684 " stroke="#A7AFBB" stroke-width="3" clip-path="url(#tableclip)" stroke-linecap="round"/>
+    <rect x="580.1" y="348" width="172" height="103.9" fill="#A9D8F6" opacity="0.6" clip-path="url(#tableclip)"/>
+    <polygon points="577.8,361.1 670.9,454.2 670.9,585.8 577.8,678.9 446.2,678.9 353.1,585.8 353.1,454.2 446.2,361.1" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.9" stroke-linejoin="round"/>
+    <path d="M396.3,188.2 L402.4,216.1 L430.3,222.2 L402.4,228.3 L396.3,256.2 L390.2,228.3 L362.3,222.2 L390.2,216.1 Z" fill="#FFFFFF" opacity="0.95"/>
+    <path d="M703.7,807.8 L706.6,820.9 L719.7,823.8 L706.6,826.7 L703.7,839.8 L700.8,826.7 L687.7,823.8 L700.8,820.9 Z" fill="#DCF0FD" opacity="0.8"/>
+    </g>
+</svg>
