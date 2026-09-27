@@ -1220,7 +1220,7 @@ for i, (lab, val, esito, det) in enumerate(dq):
     ws.cell(r, 2, lab)
     ws.cell(r, 3, val).alignment = Alignment(horizontal="left")
     ws.cell(r, 4, "=" + esito.format(r=r))
-    ws.cell(r, 5, "=" + det)
+    ws.cell(r, 5, f'=IF(D{r}="OK","",{det})')  # la spiegazione compare solo se c'è da intervenire
 DQ2 = DQ1 + len(dq) - 1
 for t, fill in (("WARNING", RED), ("CHECK", YELLOW), ("INFO", YELLOW), ("OK", GREEN)):
     ws.conditional_formatting.add(f"D{DQ1}:D{DQ2}", FormulaRule(formula=[f'D{DQ1}="{t}"'], fill=fill))
