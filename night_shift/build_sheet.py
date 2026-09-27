@@ -67,13 +67,21 @@ LISTS = {
 AGENT_ROWS = 150  # righe massime nei fogli Agenti / Spotcheck
 FOCUS = ["Handoff", "Pending", "NPS", "Reopen"]
 WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]  # WEEKDAY() 1..7
-MEDALLIA_COLS = [  # campo, intestazione di colonna attesa nell'export Medallia (da verificare)
-    ("Agent LDAP", "Agent LDAP"),
-    ("Response date", "Response Date"),
-    ("Score (0-10)", "Likelihood to Recommend"),
-    ("Verbatim", "Comment"),
-    ("Case ID", "Case ID"),
+MEDALLIA_COLS = [  # campo, intestazione di colonna nell'estrazione Medallia del DATASHEET (le prime 5 obbligatorie)
+    ("Agent LDAP", "Agentldap"),
+    ("Date (case closed = when the agent worked it)", "Case Closed Date"),
+    ("Score (0-10)", "NPS"),
+    ("Verbatim", "What's the reason for your score?"),
+    ("Case ID", "SFDC Case Number"),
+    ("Verbatim in English (optional)", "Translation to English for: What's the reason for your score?"),
+    ("Case link (optional)", "URL"),
+    ("Topics (optional)", "Topics for: What's the reason for your score?"),
 ]
+MED_REQ = 5
+MED_ROW = 64  # prima riga della mappatura in Setup
+MED_THR = MED_ROW + len(MEDALLIA_COLS)  # riga della soglia detractor
+MED_ROWS = 30000
+MEDALLIA_HEADER = ['Customer Name', 'Customer ID', 'Survey Response Date', 'Ticket/Case Opened Date (excluding feedless surveys)', 'Case Closed Date', 'Survey Creation Date', 'Ticket ID', 'Medallia Survey ID', 'SFDC Case Number', 'Guest, Host or Cohost', 'SuperHost', 'Contact Reason', 'Ticket Service Group', 'Claims Payment Status', 'Cases Last Service Group', 'URL', 'NPS', 'NPS Segments', 'CSAT', 'CSAT Segment', 'AQS Average', 'AQS: Knowledge', 'AQS: Follow Through', 'AQS: Efficiency', 'CX - Resolved Inquiry', 'CES', 'CES Segment', "What's the reason for your score?", "Translation to English for: What's the reason for your score?", "Topics for: What's the reason for your score?", 'Region', 'Site', 'OM', 'Lead', 'Support Ambassador  Name', 'Support Ambassador User ID', 'Agent Sector', 'Invitation Language', 'Survey Program Type', 'Post Chat Feedless Survey', 'Survey Source', 'Delivered on date', 'Love Score (LS) (Claims Only past 11/23)', 'Primary Reason (LTR) (Claims Only past 11/23)', 'Effort to Resolution (Claims Only after 11/23)', 'Effort to Get in Touch (Claims Only after 11/23)', 'Effort to Get Information (Claims Only after 11/23)', 'Met Service Expectations (Claims Only after 11/23', 'Supported (Claims Only after 11/23)', 'Follow Through (Claims Only after 11/23)', '', '', '', '', 'Agentldap', 'InPeriod', 'Tier', 'Score', 'Week', 'InGroup', 'InCR', 'TierQ']
 DETRACTOR_MAX = 6
 
 HDR_FILL = PatternFill("solid", fgColor="1F3864")
@@ -1019,52 +1027,76 @@ ws.freeze_panes = "A5"
 
 # ---- Medallia (incolla) + mappatura in Setup (15)
 ws = ws_med
-med_hdr = [h for _, h in MEDALLIA_COLS]
-header(ws, 1, med_hdr)
-ws["G1"] = ("Paste the Medallia export here from A1 (headers in row 1). The columns used are set in "
-            "Setup C64:C68. The current rows are TEST DATA to delete.")
-ws["G1"].font = Font(italic=True, color="C00000")
-ws.column_dimensions["B"].number_format = DATE
+header(ws, 1, MEDALLIA_HEADER)
+col_of = {h: i for i, h in enumerate(MEDALLIA_HEADER) if h}
 med_agents = [a for a in test_agents if a in agent_agg][:8]
 for i in range(16):
     a = med_agents[i % len(med_agents)]
     d = PERIOD_START + dt.timedelta(days=i % 5) if i < 12 else PREV_START + dt.timedelta(days=i % 5)
-    ws.append([a, d, [2, 9, 5, 10, 0, 6, 8, 3, 7, 10, 4, 1, 2, 9, 6, 0][i], f"TEST - sample comment {i + 1}",
-               f"TEST-{1000 + i}"])
-    ws.cell(ws.max_row, 2).number_format = DATE
-widths(ws, {"A": 24, "B": 14, "C": 12, "D": 50, "E": 14})
+    row = [None] * len(MEDALLIA_HEADER)
+    vals = {
+        "Agentldap": a,
+        "Case Closed Date": f"{d.isoformat()} {1 + i % 5}:{10 + i}:00",
+        "Survey Response Date": f"{(d + dt.timedelta(days=2)).isoformat()} 10:00:00",
+        "NPS": [2, 9, 5, 10, 0, 6, 8, 3, 7, 10, 4, 1, 2, 9, 6, 0][i],
+        "What's the reason for your score?": f"TEST - commento di prova {i + 1}",
+        "Translation to English for: What's the reason for your score?": f"TEST - sample comment {i + 1}",
+        "SFDC Case Number": f"TEST-{1000 + i}",
+        "URL": f"https://example.invalid/cases/TEST-{1000 + i}",
+        "Topics for: What's the reason for your score?": "TEST - topic",
+        "Support Ambassador  Name": "TEST agent",
+    }
+    for k, v in vals.items():
+        row[col_of[k]] = v
+    ws.append(row)
+ws.cell(1, len(MEDALLIA_HEADER) + 2, "Paste the Medallia extraction (DATASHEET format) here from A1, headers in row 1. "
+        "The current rows are TEST DATA to delete.").font = Font(italic=True, color="C00000")
+for c_ in range(1, len(MEDALLIA_HEADER) + 1):
+    ws.column_dimensions[L_(c_)].width = 14
 ws.freeze_panes = "A2"
 
 ws = ws_set
-header(ws, 63, ["Medallia: field", "Column header in the Medallia sheet"], col=2)
+header(ws, MED_ROW - 1, ["Medallia: field", "Column header in the Medallia sheet"], col=2)
 for i, (lab, h) in enumerate(MEDALLIA_COLS):
-    ws.cell(64 + i, 2, lab)
-    ws.cell(64 + i, 3, h).fill = INPUT_FILL
-ws.cell(69, 2, "Detractor = score less than or equal to")
-ws.cell(69, 3, DETRACTOR_MAX).fill = INPUT_FILL
-ws["D64"] = ("TO VERIFY: enter the exact column names of the Medallia export. "
-             "LDAP can also be an email (the part after @ is ignored).")
-ws["D64"].font = Font(bold=True, color="C00000")
-MED_MATCH = [f"MATCH(Setup!$C${64 + i},Medallia!$A$1:$AZ$1,0)" for i in range(5)]
+    ws.cell(MED_ROW + i, 2, lab)
+    ws.cell(MED_ROW + i, 3, h).fill = INPUT_FILL
+ws.cell(MED_THR, 2, "Detractor = score less than or equal to")
+ws.cell(MED_THR, 3, DETRACTOR_MAX).fill = INPUT_FILL
+ws[f"D{MED_ROW}"] = ("Headers of the Medallia extraction from the DATASHEET. Columns are found by name: you can "
+                     "delete or move the others. Agentldap is required (a raw Medallia export does not have it).")
+ws[f"D{MED_ROW}"].font = Font(bold=True, color="C00000")
+MH = "Medallia!$A$1:$CZ$1"
+MED_MATCH = [f"MATCH(Setup!$C${MED_ROW + i},{MH},0)" for i in range(len(MEDALLIA_COLS))]
+MED_RNG = f"Setup!C{MED_ROW}:C{MED_ROW + MED_REQ - 1}"
 
 # ---- NPS_Detractors (15)
 ws = ws_det
 title(ws, "NPS DETRACTORS OF NIGHT AGENTS (from Medallia)",
-      "Responses with score ≤ threshold (Setup C69), date in the period, agents in Shift_Log in the period. "
-      "Use them to pick the NPS cases to check; 'Already in Spotcheck_Log' looks for the Case ID in column E.")
-header(ws, 4, ["Date", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Assigned shift",
-               "Already in Spotcheck_Log?"])
+      f"Responses with score ≤ threshold (Setup C{MED_THR}), case closed in the period, agents in Shift_Log in the "
+      "period. Use them to pick the NPS cases to check; 'Already in Spotcheck_Log' looks for the Case ID in column E.")
+header(ws, 4, ["Case closed", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Assigned shift",
+               "Already in Spotcheck_Log?", "Verbatim (English)", "Case link", "Topics"])
 D1, D2 = 5, 504
-ws[f"A{D1}"] = (
-    '=IFERROR(LET(m,Medallia!$A$2:$AZ$5000,'
-    f'l,MAP(INDEX(m,0,{MED_MATCH[0]}),LAMBDA(x,IF(x="","",TRIM(REGEXREPLACE(x&"","@.*",""))))),'
-    f'dn,MAP(INDEX(m,0,{MED_MATCH[1]}),LAMBDA(x,IF(ISNUMBER(x),INT(x),IFERROR(INT(DATEVALUE(x)),"")))),'
-    f'sn,MAP(INDEX(m,0,{MED_MATCH[2]}),LAMBDA(x,IF(x="","",IFERROR(VALUE(x),"")))),'
-    f'vb,INDEX(m,0,{MED_MATCH[3]}),id,INDEX(m,0,{MED_MATCH[4]}),'
-    'ok,MAP(l,dn,sn,LAMBDA(a,b,c,IF(AND(a<>"",ISNUMBER(b),ISNUMBER(c)),'
-    f'AND(b>=Setup!$C$3,b<=Setup!$C$4,c<=Setup!$C$69,COUNTIF(Agents!$A$2:$A${AG_END},a)>0),FALSE))),'
-    'SORT(FILTER(HSTACK(dn,l,sn,id,vb),ok),3,TRUE,1,TRUE)),'
-    '"No detractors in the period (if Medallia has data, check the columns in Setup C64:C68)")')
+
+
+def med_let(out):
+    """LET sui detractor del periodo: out = elenco di espressioni colonna (su i = riga Medallia)."""
+    opt = lambda j: f'MAP(ix,LAMBDA(i,IF(ISNUMBER({MED_MATCH[j]}),INDEX(m,i,{MED_MATCH[j]})&"","")))'
+    cols = {"dn": "dn", "l": "l", "sv": "MAP(ix,LAMBDA(i,--INDEX(sc,i)))",
+            "id": opt(4), "vb": opt(3), "tr": opt(5), "url": opt(6), "top": opt(7)}
+    return (
+        f'LET(m,Medallia!$A$2:$CZ${MED_ROWS},sc,INDEX(m,0,{MED_MATCH[2]}),'
+        f'ix,FILTER(SEQUENCE(ROWS(m)),MAP(sc,LAMBDA(x,IF(x="",FALSE,IFERROR(--x,99)<=Setup!$C${MED_THR})))),'
+        f'dn,MAP(ix,LAMBDA(i,LET(x,INDEX(m,i,{MED_MATCH[1]}),IF(ISNUMBER(x),INT(x),IFERROR(INT(DATEVALUE(x)),IFERROR(DATEVALUE(LEFT(x,10)),"")))))),'
+        f'l,MAP(ix,LAMBDA(i,TRIM(REGEXREPLACE(INDEX(m,i,{MED_MATCH[0]})&"","@.*","")))),'
+        'ok,MAP(l,dn,LAMBDA(a,b,IF(AND(a<>"",ISNUMBER(b)),'
+        f'AND(b>=Setup!$C$3,b<=Setup!$C$4,COUNTIF(Agents!$A$2:$A${AG_END},a)>0),FALSE))),'
+        f'SORT(FILTER(HSTACK({",".join(cols[c] for c in out)}),ok),3,TRUE,1,TRUE))')
+
+
+ws[f"A{D1}"] = (f'=IFERROR({med_let(["dn", "l", "sv", "id", "vb"])},'
+                f'"No detractors in the period (if Medallia has data, check the columns in Setup C{MED_ROW}:C{MED_ROW + MED_REQ - 1})")')
+ws[f"I{D1}"] = f'=IFERROR(CHOOSECOLS({med_let(["dn", "l", "sv", "tr", "url", "top"])},4,5,6),"")'
 DB = f"B{D1}:B{D2}"
 ws[f"F{D1}"] = f'=MAP({DB},LAMBDA(l,IF(l="","",IFERROR(VLOOKUP(l,Agents!$A$2:$B${AG_END},2,0),""))))'
 ws[f"G{D1}"] = (f'=MAP(A{D1}:A{D2},{DB},LAMBDA(d,l,IF(l="","",'
@@ -1073,8 +1105,9 @@ ws[f"H{D1}"] = (f'=MAP(D{D1}:D{D2},LAMBDA(i,IF(i="","",'
                 f'IF(COUNTIF(Spotcheck_Log!$E$2:$E,"*"&i&"*")>0,"Yes","No"))))')
 for r in range(D1, D2 + 1):
     ws[f"A{r}"].number_format = DATE
-    ws[f"E{r}"].alignment = Alignment(wrap_text=True, vertical="top")
-widths(ws, {"A": 12, "B": 24, "C": 10, "D": 16, "E": 70, "F": 20, "G": 12, "H": 12})
+    for c_ in "EI":
+        ws[f"{c_}{r}"].alignment = Alignment(wrap_text=True, vertical="top")
+widths(ws, {"A": 12, "B": 24, "C": 8, "D": 14, "E": 60, "F": 20, "G": 11, "H": 12, "I": 60, "J": 30, "K": 30})
 ws.freeze_panes = "A5"
 
 # ---- Completamento spotcheck per TL (11) - nel foglio Spotcheck
@@ -1176,9 +1209,10 @@ dq = [
      '"Dummy data: filter Source = TEST and delete them before real use"'),
     ("Period agents without Team Lead", f'=COUNTIFS(Agents!$A$2:$A${AG_END},"?*",Agents!$B$2:$B${AG_END},"")',
      'IF(C{r}=0,"OK","CHECK")', '"Needed for TL_View and completion by TL"'),
-    ("Medallia columns found (Setup C64:C68)", "=" + "+".join(f"ISNUMBER({m})" for m in MED_MATCH) + "",
-     'IF(COUNTA(Medallia!$A$2:$A)=0,"INFO",IF(C{r}=5,"OK","WARNING"))',
-     '"Out of 5. INFO = Medallia sheet empty"'),
+    (f"Required Medallia columns found (Setup C{MED_ROW}:C{MED_ROW + MED_REQ - 1})",
+     "=" + "+".join(f"ISNUMBER({m})" for m in MED_MATCH[:MED_REQ]),
+     f'IF(COUNTA(Medallia!$A$2:$CZ$3)=0,"INFO",IF(C{{r}}={MED_REQ},"OK","WARNING"))',
+     f'"Out of {MED_REQ}. INFO = Medallia sheet empty"'),
 ]
 DQ1 = 52
 for i, (lab, val, esito, det) in enumerate(dq):
@@ -1247,7 +1281,7 @@ lines = [
     ("3. 'New_Week' calculates itself: copy A2:G and paste VALUES ONLY at the bottom of 'Shift_Log' "
      "(Shift_Log is the history: do not delete previous weeks).", None),
     ("4. Medallia: paste the NPS responses export into 'Medallia' from A1 (check the column names once "
-     "in Setup C64:C68).", None),
+     f"in Setup C{MED_ROW}:C{MED_THR - 1}).", None),
     ("5. In 'Setup' set the start / end date (usually one week, Sun-Sat): the comparison uses the previous "
      "period of the same length. Check the 'DATA QUALITY CHECK' box in Setup (row 50).", None),
     ("6. Read 'Dashboard' and 'Spotcheck'; each TL uses 'TL_View' and logs the checks in 'Spotcheck_Log'.", None),
@@ -1315,8 +1349,10 @@ lines = [
      "of the 13-24/09 test extraction) to try the formulas. Before real use, filter Source = TEST, "
      "delete those rows and replace the data in 'Tableau'. The 'Medallia' rows and the 2 TEST rows in "
      "'Spotcheck_Log' are test data too.", None),
-    ("- Medallia: the export structure is not verified yet. If the column names differ, "
-     "fix them in Setup C64:C68 (the data quality box shows how many columns are found).", None),
+    ("- Medallia: paste the Medallia extraction of the DATASHEET as it is (Agentldap is required). Columns are "
+     f"found by header name (Setup C{MED_ROW}:C{MED_THR - 1}), so you can delete the ones you don't need, e.g. "
+     "Customer Name and Customer ID (personal data). Detractors are dated by Case Closed Date (when the agent "
+     "worked the case), not by the survey response date.", None),
 ]
 for i, (t, kind) in enumerate(lines, start=1):
     c = ws.cell(i, 2, t)
