@@ -233,6 +233,7 @@ def icon1():
 '''
     return frame(s, defs)
 
-for name, fn in [("arkenstone-1-gemma-griglia.svg", icon1), ("arkenstone-3-taglio-nanico.svg", icon3), ("arkenstone-9-monogramma-a.svg", icon9)]:
+if __name__ == "__main__":
+  for name, fn in [("arkenstone-1-gemma-griglia.svg", icon1), ("arkenstone-3-taglio-nanico.svg", icon3), ("arkenstone-9-monogramma-a.svg", icon9)]:
     open(os.path.join(OUT, name), "w").write(fn())
-print("ok")
+  print("ok")
