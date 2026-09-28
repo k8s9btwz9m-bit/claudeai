@@ -450,6 +450,13 @@ ws["Y2"] = ('=ARRAYFORMULA(IF(B2:B="","",IF((A2:A>=Setup!$C$3)*(A2:A<=Setup!$C$4
 ws["Z2"] = ('=MAP(H2:H,Y2:Y,LAMBDA(h,y,IF(h="","",IF(y=1,IF(COUNTIF(Tableau!$J$2:$J,h)>0,1,0),""))))')
 ws["AA2"] = '=ARRAYFORMULA(IF(B2:B="","",IF(K2:K>=N2:N,INT(A2:A),INT(A2:A)-1)))'
 ws["AB2"] = '=ARRAYFORMULA(IF(B2:B="","",WEEKDAY(AA2:AA)))'
+# giornate-agente = notti pianificate in Schedules (la "coda" dopo mezzanotte porta dati ma non conta come giornata)
+ws["AC1"], ws["AD1"] = "Night shift planned (in period)", "Weekday of date (1=Sun)"
+for c_ in ("AC1", "AD1"):
+    ws[c_].fill, ws[c_].font = CALC_FILL, Font(bold=True)
+ws["AC2"] = ('=ARRAYFORMULA(IF(B2:B="","",IF((A2:A>=Setup!$C$3)*(A2:A<=Setup!$C$4)*'
+             f'(((J2:J={C1})+(J2:J={C2}))>0),1,0)))')
+ws["AD2"] = '=ARRAYFORMULA(IF(B2:B="","",WEEKDAY(A2:A)))'
 ws.column_dimensions["AA"].number_format = DATE
 widths(ws, {"A": 11, "B": 24, "C": 17, "D": 18, "E": 10, "F": 13, "G": 8, "H": 30, "I": 11,
             "J": 9, "O": 12})
@@ -532,13 +539,13 @@ for lab, _, src_lab in vols:
     for col, scol in zip("IJK", "FGH"):
         ws[f"{col}{r}"] = f"={scol}{sum_ref[src_lab]}"
     r += 1
-ws.cell(r, 2, "Agent-days (night shifts)")
-ws[f"C{r}"] = "=COUNTIF(Shift_Log!$Y$2:$Y,1)"
-ws[f"D{r}"] = f"=COUNTIFS(Shift_Log!$Y$2:$Y,1,Shift_Log!$O$2:$O,{C1})"
-ws[f"E{r}"] = f"=COUNTIFS(Shift_Log!$Y$2:$Y,1,Shift_Log!$O$2:$O,{C2})"
-ws[f"I{r}"] = f"=COUNTIFS({PA},Shift_Log!$O$2:$O,{C1})+COUNTIFS({PA},Shift_Log!$O$2:$O,{C2})"
-ws[f"J{r}"] = f"=COUNTIFS({PA},Shift_Log!$O$2:$O,{C1})"
-ws[f"K{r}"] = f"=COUNTIFS({PA},Shift_Log!$O$2:$O,{C2})"
+ws.cell(r, 2, "Agent-days (planned night shifts)")
+ws[f"C{r}"] = "=COUNTIF(Shift_Log!$AC$2:$AC,1)"
+ws[f"D{r}"] = f"=COUNTIFS(Shift_Log!$AC$2:$AC,1,Shift_Log!$J$2:$J,{C1})"
+ws[f"E{r}"] = f"=COUNTIFS(Shift_Log!$AC$2:$AC,1,Shift_Log!$J$2:$J,{C2})"
+ws[f"I{r}"] = f"=COUNTIFS({PA},Shift_Log!$J$2:$J,{C1})+COUNTIFS({PA},Shift_Log!$J$2:$J,{C2})"
+ws[f"J{r}"] = f"=COUNTIFS({PA},Shift_Log!$J$2:$J,{C1})"
+ws[f"K{r}"] = f"=COUNTIFS({PA},Shift_Log!$J$2:$J,{C2})"
 r += 1
 ws.cell(r, 2, "Distinct agents")
 ws[f"C{r}"] = '=IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$Y$2:$Y=1))),0)'
@@ -615,8 +622,8 @@ LOG = "Shift_Log!$B$2:$B"
 PER = "Shift_Log!$Y$2:$Y"
 ws["A2"] = f'=IFERROR(SORT(UNIQUE(FILTER({LOG},{PER}=1))),"")'
 ws["B2"] = f'=MAP({A},LAMBDA(a,IF(a="","",IFERROR(VLOOKUP(a,Shift_Log!$B$2:$D,3,0),""))))'
-ws["C2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,{PER},1,Shift_Log!$O$2:$O,{C1}))))'
-ws["D2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,{PER},1,Shift_Log!$O$2:$O,{C2}))))'
+ws["C2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,Shift_Log!$AC$2:$AC,1,Shift_Log!$J$2:$J,{C1}))))'
+ws["D2"] = f'=MAP({A},LAMBDA(a,IF(a="","",COUNTIFS({LOG},a,Shift_Log!$AC$2:$AC,1,Shift_Log!$J$2:$J,{C2}))))'
 ws["E2"] = (f'=ARRAYFORMULA(IF({A}="","",IF((C2:C{N}>0)*(D2:D{N}>0),"Mixed",'
             f'IF(C2:C{N}>0,{C1},{C2}))))')
 for i, (lab, m, col) in enumerate(MEASURES):
@@ -739,6 +746,7 @@ ws.freeze_panes = "A2"
 # ---- Riferimenti comuni per i fogli di analisi
 TL_ = "Shift_Log!"
 LOGB, LOGY, LOGO = "Shift_Log!$B$2:$B", "Shift_Log!$Y$2:$Y", "Shift_Log!$O$2:$O"
+LOGP, LOGJ = "Shift_Log!$AC$2:$AC", "Shift_Log!$J$2:$J"  # notte pianificata, codice del turno pianificato
 MCOL = {lab: col for lab, _, col in MEASURES}
 MIN_OF = {"Throughput": "0", "Recontact": "0", "Handoff": "Setup!$C$42", "Pending": "Setup!$C$42",
           "Reopen": "Setup!$C$43", "NPS": "Setup!$C$44"}
@@ -790,7 +798,7 @@ ws[f"B{R1}"] = f'=MAP({RA},LAMBDA(a,IF(a="","",IFERROR(VLOOKUP(a,Agents!$A$2:$B$
 sa_ = lambda col, code: f"SUMIFS(Shift_Log!${col}$2:${col},{LOGB},a,{LOGY},1,{LOGO},{code})"
 tot_ = lambda col, code: f"SUM(MAP({RA},LAMBDA(a,IF(a=\"\",0,{sa_(col, code)}))))"
 for col, code in (("C", C1), ("D", C2)):
-    ws[f"{col}{R1}"] = f'=MAP({RA},LAMBDA(a,IF(a="","",COUNTIFS({LOGB},a,{LOGY},1,{LOGO},{code}))))'
+    ws[f"{col}{R1}"] = f'=MAP({RA},LAMBDA(a,IF(a="","",COUNTIFS({LOGB},a,{LOGP},1,{LOGJ},{code}))))'
     ws[f"{col}5"] = f"=SUM({col}{R1}:{col}{R2})"
 for col, dcol, code in (("E", "C", C1), ("F", "D", C2)):
     ws[f"{col}{R1}"] = (f'=MAP({RA},{dcol}{R1}:{dcol}{R2},LAMBDA(a,n,IF(a="","",IF(n>0,'
@@ -837,11 +845,12 @@ header(ws, 5, ["Weekday"] + car_hdr)
 for i, wd in enumerate(WEEKDAYS + ["Total"]):
     r = 6 + i
     ws[f"A{r}"] = wd
-    extra = f",Shift_Log!$AB$2:$AB,{i + 1}" if wd != "Total" else ""
+    extra = f",Shift_Log!$AB$2:$AB,ROW()-5" if wd != "Total" else ""
+    extra_p = f",Shift_Log!$AD$2:$AD,ROW()-5" if wd != "Total" else ""
     for j, code in enumerate((C1, C2, None)):
         cg, ca, cr = (L_(2 + 3 * j + x) for x in range(3))
         if code:
-            ws[f"{cg}{r}"] = f"=COUNTIFS({LOGY},1,{LOGO},{code}{extra})"
+            ws[f"{cg}{r}"] = f"=COUNTIFS({LOGP},1,{LOGJ},{code}{extra_p})"
             ws[f"{ca}{r}"] = f"=SUMIFS(Shift_Log!$P$2:$P,{LOGY},1,{LOGO},{code}{extra})"
         else:
             ws[f"{cg}{r}"] = f"=B{r}+E{r}"
@@ -854,13 +863,13 @@ for i, wd in enumerate(WEEKDAYS + ["Total"]):
             ws.cell(r, col).fill = CALC_FILL
 
 
-def load_map(ws, r1, r2, keycol, crit):
+def load_map(ws, r1, r2, keycol, crit, crit_p):
     """Colonne per chiave (settimana o data) calcolate con MAP; crit = criterio SUMIFS sulla chiave k."""
     K = f"{keycol}{r1}:{keycol}{r2}"
     for j, code in enumerate((C1, C2, None)):
         cg, ca, cr = (L_(ord(keycol) - 64 + 1 + 3 * j + x) for x in range(3))
         if code:
-            ws[f"{cg}{r1}"] = f'=MAP({K},LAMBDA(k,IF(k="","",COUNTIFS({LOGY},1,{LOGO},{code},{crit}))))'
+            ws[f"{cg}{r1}"] = f'=MAP({K},LAMBDA(k,IF(k="","",COUNTIFS({LOGP},1,{LOGJ},{code},{crit_p}))))'
             ws[f"{ca}{r1}"] = (f'=MAP({K},LAMBDA(k,IF(k="","",'
                                f'SUMIFS(Shift_Log!$P$2:$P,{LOGY},1,{LOGO},{code},{crit}))))')
         else:
@@ -880,7 +889,7 @@ ws["A16"].font = SEC_FONT
 header(ws, 17, ["Week (Sun)"] + car_hdr)
 WS_ = lambda x: f"({x}-WEEKDAY({x})+1)"
 ws["A18"] = (f"=SEQUENCE(INT(({WS_('Setup!$C$4')}-{WS_('Setup!$C$3')})/7)+1,1,{WS_('Setup!$C$3')},7)")
-load_map(ws, 18, 37, "A", "Shift_Log!$I$2:$I,k")
+load_map(ws, 18, 37, "A", "Shift_Log!$I$2:$I,k", "Shift_Log!$I$2:$I,k")
 for r in range(18, 38):
     ws[f"A{r}"].number_format = DATE
 # c) per giorno (data di inizio turno)
@@ -888,7 +897,7 @@ ws["A40"] = "By day (shift start date)"
 ws["A40"].font = SEC_FONT
 header(ws, 41, ["Shift start date"] + car_hdr + ["Weekday"])
 ws["A42"] = f'=IFERROR(SORT(UNIQUE(FILTER(Shift_Log!$AA$2:$AA,{LOGY}=1))),"")'
-load_map(ws, 42, 141, "A", "Shift_Log!$AA$2:$AA,k")
+load_map(ws, 42, 141, "A", "Shift_Log!$AA$2:$AA,k", "Shift_Log!$A$2:$A,k")
 ws["K42"] = ('=MAP(A42:A141,LAMBDA(k,IF(k="","",CHOOSE(WEEKDAY(k),'
              + ",".join(f'"{w}"' for w in WEEKDAYS) + "))))")
 for r in range(42, 142):
@@ -907,12 +916,13 @@ ws[f"P{CA1}"] = (f'=MAP({MA},O{CA1}:O{CA2},LAMBDA(a,n,IF(a="","",IF(n>0,'
                  f'SUMIFS(Shift_Log!$P$2:$P,{LOGB},a,{LOGY},1)/n,"-"))))')
 for col, code in (("Q", C1), ("R", C2)):
     ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Shift_Log!$P$2:$P,{LOGB},a,{LOGY},1,'
-                         f'{LOGO},{code})/COUNTIFS({LOGB},a,{LOGY},1,{LOGO},{code}),"-"))))')
+                         f'{LOGO},{code})/COUNTIFS({LOGB},a,{LOGP},1,{LOGJ},{code}),"-"))))')
 for i in range(7):
     col = L_(19 + i)
-    crit = f"{LOGB},a,{LOGY},1,Shift_Log!$AB$2:$AB,{i + 1}"
+    crit = f"{LOGB},a,{LOGY},1,Shift_Log!$AB$2:$AB,COLUMN()-18"
+    crit_p = f"{LOGB},a,{LOGP},1,Shift_Log!$AD$2:$AD,COLUMN()-18"
     ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Shift_Log!$P$2:$P,{crit})'
-                         f'/COUNTIFS({crit}),"-"))))')
+                         f'/COUNTIFS({crit_p}),"-"))))')
 for c in range(16, 26):
     for r in range(CA1, CA2 + 1):
         ws.cell(r, c).number_format = NUM1
@@ -1036,7 +1046,7 @@ for i in range(16):
     row = [None] * len(MEDALLIA_HEADER)
     vals = {
         "Agentldap": a,
-        "Case Closed Date": f"{d.isoformat()} {1 + i % 5}:{10 + i}:00",
+        "Case Closed Date": f"{d.isoformat()} 15:{10 + i}:00",  # ora del Pacifico = 22:xx UTC (dentro le notti)
         "Survey Response Date": f"{(d + dt.timedelta(days=2)).isoformat()} 10:00:00",
         "NPS": [2, 9, 5, 10, 0, 6, 8, 3, 7, 10, 4, 1, 2, 9, 6, 0][i],
         "What's the reason for your score?": f"TEST - commento di prova {i + 1}",
@@ -1062,6 +1072,17 @@ for i, (lab, h) in enumerate(MEDALLIA_COLS):
     ws.cell(MED_ROW + i, 3, h).fill = INPUT_FILL
 ws.cell(MED_THR, 2, "Detractor = score less than or equal to")
 ws.cell(MED_THR, 3, DETRACTOR_MAX).fill = INPUT_FILL
+for i, (lab, v) in enumerate((("Medallia time offset (hours to add to get UTC)", 7),
+                              ("Detractors: only cases closed during a night shift?", "Yes"),
+                              ("Tolerance after the end of the shift (hours)", 1))):
+    ws.cell(MED_THR + 1 + i, 2, lab)
+    ws.cell(MED_THR + 1 + i, 3, v).fill = INPUT_FILL
+ws[f"D{MED_THR + 1}"] = ("Medallia dates are US Pacific time, shifts (18-3 / 21-6) are UTC: "
+                         "7 with US daylight saving time, 8 from early November to mid March.")
+v_ = DataValidation(type="list", formula1=f"=Setup!$K$3:$K${2 + len(LISTS['Yes/No'])}", allow_blank=False)
+v_.add(f"C{MED_THR + 2}")
+ws.add_data_validation(v_)
+MED_OFF, MED_ONLY, MED_TOL = (f"Setup!$C${MED_THR + 1 + i}" for i in range(3))
 ws[f"D{MED_ROW}"] = ("Headers of the Medallia extraction from the DATASHEET. Columns are found by name: you can "
                      "delete or move the others. Agentldap is required (a raw Medallia export does not have it).")
 ws[f"D{MED_ROW}"].font = Font(bold=True, color="C00000")
@@ -1072,39 +1093,53 @@ MED_RNG = f"Setup!C{MED_ROW}:C{MED_ROW + MED_REQ - 1}"
 # ---- NPS_Detractors (15)
 ws = ws_det
 title(ws, "NPS DETRACTORS OF NIGHT AGENTS (from Medallia)",
-      f"Responses with score ≤ threshold (Setup C{MED_THR}), case closed in the period, agents in Shift_Log in the "
-      "period. Use them to pick the NPS cases to check; 'Already in Spotcheck_Log' looks for the Case ID in column E.")
-header(ws, 4, ["Case closed", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Assigned shift",
+      f"Responses with score ≤ threshold (Setup C{MED_THR}), case closed in the period (UTC), agents in Shift_Log in the "
+      f"period; with Setup C{MED_THR + 2} = Yes only cases closed during the agent's planned night shift. Use them to pick the NPS cases to check; 'Already in Spotcheck_Log' looks for the Case ID in column E.")
+header(ws, 4, ["Case closed (UTC)", "LDAP", "Score", "Case ID", "Verbatim", "Team Lead", "Night shift (by closing time)",
                "Already in Spotcheck_Log?", "Verbatim (English)", "Case link", "Topics"])
 D1, D2 = 5, 504
 
 
-def med_let(out):
-    """LET sui detractor del periodo: out = elenco di espressioni colonna (su i = riga Medallia)."""
-    opt = lambda j: f'MAP(ix,LAMBDA(i,IF(ISNUMBER({MED_MATCH[j]}),INDEX(m,i,{MED_MATCH[j]})&"","")))'
-    cols = {"dn": "dn", "l": "l", "sv": "MAP(ix,LAMBDA(i,--INDEX(sc,i)))",
-            "id": opt(4), "vb": opt(3), "tr": opt(5), "url": opt(6), "top": opt(7)}
-    return (
-        f'LET(m,Medallia!$A$2:$CZ${MED_ROWS},sc,INDEX(m,0,{MED_MATCH[2]}),'
-        f'ix,FILTER(SEQUENCE(ROWS(m)),MAP(sc,LAMBDA(x,IF(x="",FALSE,IFERROR(--x,99)<=Setup!$C${MED_THR})))),'
-        f'dn,MAP(ix,LAMBDA(i,LET(x,INDEX(m,i,{MED_MATCH[1]}),IF(ISNUMBER(x),INT(x),IFERROR(INT(DATEVALUE(x)),IFERROR(DATEVALUE(LEFT(x,10)),"")))))),'
-        f'l,MAP(ix,LAMBDA(i,TRIM(REGEXREPLACE(INDEX(m,i,{MED_MATCH[0]})&"","@.*","")))),'
-        'ok,MAP(l,dn,LAMBDA(a,b,IF(AND(a<>"",ISNUMBER(b)),'
-        f'AND(b>=Setup!$C$3,b<=Setup!$C$4,COUNTIF(Agents!$A$2:$A${AG_END},a)>0),FALSE))),'
-        f'SORT(FILTER(HSTACK({",".join(cols[c] for c in out)}),ok),3,TRUE,1,TRUE))')
-
-
-ws[f"A{D1}"] = (f'=IFERROR({med_let(["dn", "l", "sv", "id", "vb"])},'
-                f'"No detractors in the period (if Medallia has data, check the columns in Setup C{MED_ROW}:C{MED_ROW + MED_REQ - 1})")')
-ws[f"I{D1}"] = f'=IFERROR(CHOOSECOLS({med_let(["dn", "l", "sv", "tr", "url", "top"])},4,5,6),"")'
+SLK, SLF, SLJ = "Shift_Log!$H$2:$H$5000", "Shift_Log!$F$2:$F$5000", "Shift_Log!$J$2:$J$5000"
+# turno notturno pianificato che contiene l'istante t (UTC) per l'agente l: inizio il giorno t o il giorno prima
+NIGHT_AT = (f'LET(dz,INT(t),fa,XLOOKUP(l&"|"&dz,{SLK},{SLF},""),ca,XLOOKUP(l&"|"&dz,{SLK},{SLJ},""),'
+            f'fb,XLOOKUP(l&"|"&(dz-1),{SLK},{SLF},""),cb,XLOOKUP(l&"|"&(dz-1),{SLK},{SLJ},""),'
+            'sa,IFERROR(VALUE(LEFT(fa,2)),-1),ea,IFERROR(VALUE(MID(fa,7,2)),-1),'
+            'sb,IFERROR(VALUE(LEFT(fb,2)),-1),eb,IFERROR(VALUE(MID(fb,7,2)),-1),'
+            f'tol,{MED_TOL}/24,'
+            f'ina,AND(OR(ca={C1},ca={C2}),sa>=0,t>=dz+sa/24,t<dz+IF(ea<=sa,1,0)+ea/24+tol),'
+            f'inb,AND(OR(cb={C1},cb={C2}),sb>=0,t>=dz-1+sb/24,t<dz-1+IF(eb<=sb,1,0)+eb/24+tol),'
+            'IF(ina,ca,IF(inb,cb,"")))')
+MC = lambda k: f"MATCH(Setup!$C${MED_ROW + k},h,0)"
+ws[f"A{D1}"] = (
+    f'=IFERROR(LET(m,Medallia!$A$2:$CZ${MED_ROWS},h,{MH},sc,INDEX(m,0,{MC(2)}),'
+    f'cd,{MC(1)},cl,{MC(0)},ci,{MC(4)},cv,{MC(3)},'
+    f'ix,FILTER(SEQUENCE(ROWS(m)),MAP(sc,LAMBDA(x,IF(x="",FALSE,IFERROR(--x,99)<=Setup!$C${MED_THR})))),'
+    'tt,MAP(ix,LAMBDA(i,LET(x,INDEX(m,i,cd),IF(x="","",IFERROR(IF(ISNUMBER(x),x,IFERROR(VALUE(x),'
+    f'DATEVALUE(LEFT(x,10))+TIMEVALUE(TRIM(MID(x,11,9)))))+{MED_OFF}/24,""))))),'
+    'll,MAP(ix,LAMBDA(i,TRIM(REGEXREPLACE(INDEX(m,i,cl)&"","@.*","")))),'
+    'ok,MAP(ll,tt,LAMBDA(a,b,IF(AND(a<>"",ISNUMBER(b)),AND(INT(b)>=Setup!$C$3,INT(b)<=Setup!$C$4,'
+    f'COUNTIF(Agents!$A$2:$A${AG_END},a)>0),FALSE))),'
+    'jx,FILTER(SEQUENCE(ROWS(ix)),ok),'
+    f'sh,MAP(jx,LAMBDA(j,LET(t,INDEX(tt,j),l,INDEX(ll,j),{NIGHT_AT}))),'
+    f'kp,MAP(sh,LAMBDA(s,OR({MED_ONLY}<>"Yes",s<>""))),'
+    'out,HSTACK(MAP(jx,LAMBDA(j,INDEX(tt,j))),MAP(jx,LAMBDA(j,INDEX(ll,j))),'
+    'MAP(jx,LAMBDA(j,--INDEX(sc,INDEX(ix,j)))),MAP(jx,LAMBDA(j,INDEX(m,INDEX(ix,j),ci)&"")),'
+    'MAP(jx,LAMBDA(j,INDEX(m,INDEX(ix,j),cv)&""))),'
+    'SORT(FILTER(out,kp),3,TRUE,1,TRUE)),'
+    f'"No detractors in the period (if Medallia has data, check Setup C{MED_ROW}:C{MED_ROW + MED_REQ - 1})")')
+for col, k in (("I", 5), ("J", 6), ("K", 7)):  # colonne facoltative, cercate per Case ID
+    ws[f"{col}{D1}"] = (f'=MAP(D{D1}:D{D2},LAMBDA(i,IF(i="","",IFERROR(XLOOKUP(i,'
+                        f'INDEX(Medallia!$A$2:$CZ${MED_ROWS},0,MATCH(Setup!$C${MED_ROW + 4},{MH},0)),'
+                        f'INDEX(Medallia!$A$2:$CZ${MED_ROWS},0,MATCH(Setup!$C${MED_ROW + k},{MH},0)),""),""))))')
 DB = f"B{D1}:B{D2}"
 ws[f"F{D1}"] = f'=MAP({DB},LAMBDA(l,IF(l="","",IFERROR(VLOOKUP(l,Agents!$A$2:$B${AG_END},2,0),""))))'
-ws[f"G{D1}"] = (f'=MAP(A{D1}:A{D2},{DB},LAMBDA(d,l,IF(l="","",'
-                f'IFERROR(VLOOKUP(l&"|"&d,Shift_Log!$H$2:$O,8,0),"n/a"))))')
+ws[f"G{D1}"] = (f'=MAP(A{D1}:A{D2},{DB},LAMBDA(t,l,IF(OR(l="",NOT(ISNUMBER(t))),"",'
+                f'LET(r,{NIGHT_AT},IF(r="","Outside night shift",r)))))')
 ws[f"H{D1}"] = (f'=MAP(D{D1}:D{D2},LAMBDA(i,IF(i="","",'
                 f'IF(COUNTIF(Spotcheck_Log!$E$2:$E,"*"&i&"*")>0,"Yes","No"))))')
 for r in range(D1, D2 + 1):
-    ws[f"A{r}"].number_format = DATE
+    ws[f"A{r}"].number_format = "dd/mm/yyyy hh:mm"
     for c_ in "EI":
         ws[f"{c_}{r}"].alignment = Alignment(wrap_text=True, vertical="top")
 widths(ws, {"A": 12, "B": 24, "C": 8, "D": 14, "E": 60, "F": 20, "G": 11, "H": 12, "I": 60, "J": 30, "K": 30})
@@ -1199,9 +1234,9 @@ dq = [
      'IF(C{r}=0,"OK","INFO")',
      f'IFERROR(TEXTJOIN(", ",TRUE,FILTER(UNIQUE(FILTER(Tableau!$A$2:$A,{TD}>=$C$3,{TD}<=$C$4)),'
      f'MAP(UNIQUE(FILTER(Tableau!$A$2:$A,{TD}>=$C$3,{TD}<=$C$4)),LAMBDA(a,COUNTIF({LOGB},a)=0)))),"")'),
-    ("Night agent-days in Shift_Log without Tableau rows", "=COUNTIFS(Shift_Log!$Y$2:$Y,1,Shift_Log!$Z$2:$Z,0)",
+    ("Planned night shifts in Shift_Log without Tableau rows", "=COUNTIFS(Shift_Log!$AC$2:$AC,1,Shift_Log!$Z$2:$Z,0)",
      'IF(C{r}=0,"OK","CHECK")',
-     'IFERROR(TEXTJOIN(", ",TRUE,UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$Y$2:$Y=1,Shift_Log!$Z$2:$Z=0))),"")'),
+     'IFERROR(TEXTJOIN(", ",TRUE,UNIQUE(FILTER(Shift_Log!$B$2:$B,Shift_Log!$AC$2:$AC=1,Shift_Log!$Z$2:$Z=0))),"")'),
     ("Duplicate rows in Shift_Log (same LDAP and date)",
      '=COUNTIF(Shift_Log!$H$2:$H,"?*")-IFERROR(ROWS(UNIQUE(FILTER(Shift_Log!$H$2:$H,Shift_Log!$H$2:$H<>""))),0)',
      'IF(C{r}=0,"OK","WARNING")', '"Duplicate rows double the numbers: delete them from Shift_Log"'),
@@ -1381,7 +1416,7 @@ for sh in wb.worksheets:
             if isinstance(c.value, str) and c.value.startswith("="):
                 c.value = close_ranges(c.value, sh.title)
 # le formule che si espandono richiedono abbastanza righe nella griglia: segnaposto in fondo
-for sh, row, col in ((ws_tab, 40001, "L"), (ws_tl, 5001, "AD"), (ws_new, 1101, "I"),
+for sh, row, col in ((ws_tab, 40001, "L"), (ws_tl, 5001, "AF"), (ws_new, 1101, "I"),
                      (ws_ag, AGENT_ROWS + 2, "AB"), (ws_spot, AGENT_ROWS + 6, "R"),
                      (ws_vtl, V2 + 2, "AD"), (ws_rot, R2 + 2, "Z"), (ws_car, CA2 + 5, "A"),
                      (ws_str, S2 + 2, "A"), (ws_coa, K2 + 2, "A"), (ws_det, D2 + 2, "A")):
