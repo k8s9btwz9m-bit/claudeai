@@ -921,7 +921,7 @@ for i in range(7):
     col = L_(19 + i)
     crit = f"{LOGB},a,{LOGY},1,Shift_Log!$AB$2:$AB,COLUMN()-18"
     crit_p = f"{LOGB},a,{LOGP},1,Shift_Log!$AD$2:$AD,COLUMN()-18"
-    ws[f"{col}{CA1}"] = (f'=MAP({MA},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Shift_Log!$P$2:$P,{crit})'
+    ws[f"{col}{CA1}"] = (f'=MAP($M${CA1}:$M${CA2},LAMBDA(a,IF(a="","",IFERROR(SUMIFS(Shift_Log!$P$2:$P,{crit})'
                          f'/COUNTIFS({crit_p}),"-"))))')
 for c in range(16, 26):
     for r in range(CA1, CA2 + 1):
