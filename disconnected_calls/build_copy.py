@@ -288,6 +288,7 @@ X = {
     "s_calc_c": ST.xf(size=11, fill=GREY_LIGHT, h="center"),
     "s_input": ST.xf(size=11),
     "s_input_date": ST.xf(size=11, num=DATE_FMT),
+    "s_prefill": ST.xf(size=11, italic=True, color="FF1F4E79"),
     "s_h_calc": ST.xf(bold=True, color="FFFFFFFF", fill=SLATE, h="center", wrap=True),
     "s_h_input": ST.xf(bold=True, color="FFFFFFFF", fill=TEAL, h="center", wrap=True),
 }
@@ -371,6 +372,7 @@ for tab, ids in IDS.items():
     for i, row in ids.items():
         if i in prefill and prefill[i]:
             PREFILL[tab][row] = dict(prefill[i])
+LEGACY_ROWS = {t: {r: dict(v) for r, v in rows.items()} for t, rows in PREFILL.items()}
 if TEST_INPUTS:
     for tab, rows in TEST_INPUTS.get("site", {}).items():
         for row, vals in rows.items():
@@ -442,7 +444,8 @@ def patch_site(tab, xml):
                 v = fills.get(r, {}).get(col) if kind.startswith("input") else None
                 if isinstance(v, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
                     v = dt.date.fromisoformat(v)
-                out.append(cell_xml(ref, v, st_b[kind]))
+                legacy = r in LEGACY_ROWS[tab] and col in LEGACY_ROWS[tab][r] and v == LEGACY_ROWS[tab][r][col]
+                out.append(cell_xml(ref, v, X["s_prefill"] if legacy else st_b[kind]))
         return "".join(out)
 
     def repl(m):
@@ -454,6 +457,8 @@ def patch_site(tab, xml):
             raise SystemExit(f"{tab}: row {r} already has cells after T")
         return f'<row r="{r}"{m.group(2)}>{body}{row_cells(r)}</row>'
 
+    assert xml.count("QUERY(RAW!A1:R2728,") == 1, tab
+    xml = xml.replace("QUERY(RAW!A1:R2728,", f"QUERY(RAW!A1:R{RAW_LAST_ROW},")
     xml, n = re.subn(r'<row r="(\d+)"([^>]*)>(.*?)</row>', repl, xml, flags=re.S)
     assert n >= SITE_LAST_ROW, (tab, n)
     cols = "".join(f'<col customWidth="1" min="{col_num(c)}" max="{col_num(c)}" width="{w}"/>' for c, _, _, w in SITE_COLS)
@@ -502,7 +507,7 @@ def patch_validation(xml):
     cols = "".join(f'<col customWidth="1" min="{col_num(c)}" max="{col_num(c)}" width="{w}"/>'
                    for c, w in (("C", 3), ("D", 36), ("E", 14), ("F", 30), ("G", 10), ("H", 22), ("I", 34)))
     xml = xml.replace("</cols>", cols + "</cols>", 1)
-    return xml.replace('width="11.11"/>', 'width="26"/>', 1)
+    return xml
 
 
 parts[VALIDATION_XML] = patch_validation(parts[VALIDATION_XML].decode("utf-8")).encode("utf-8")
@@ -667,9 +672,6 @@ EC.freeze = (3, 4)
 EC.autofilter = f"A4:P{EC_LAST}"
 EC.widths.update({"A": 12, "B": 6, "C": 13, "D": 11, "E": 10, "F": 13, "G": 10, "H": 10, "I": 11, "J": 11,
                   "K": 12, "L": 16, "M": 26, "N": 46, "O": 30, "P": 22})
-EC.heights[2] = 30
-EC.merges.append("A2:O2")
-EC.set("A2", EC.cells[2]["A"][0], "note")
 ECR = f"5:{EC_LAST}"
 EC.cf += [
     (f"A{EC_FIRST}:C{EC_LAST}", "expr", f"WEEKDAY($A{EC_FIRST},2)>5", DXF["weekend"]),
@@ -877,10 +879,11 @@ def site_rng(tab, c):
     return f"{q(tab)}!${c}$2:${c}${SITE_LAST_ROW}"
 
 
-def textjoin_counts(tab, r, col, values_rng, prefix):
-    """'2 Headset, 1 Network / connection' for the day (array formula)."""
+def textjoin_counts(tab, r, col, values_rng, prefix, total):
+    """'2 Headset, 1 Network / connection, 3 not recorded' for the day (array formula)."""
     return F(f'IF($E{r}=0,"",LET(v_n,COUNTIFS({site_rng(tab, "C")},$A{r},{site_rng(tab, col)},{values_rng}),'
-             f'TEXTJOIN(", ",TRUE,IF(v_n>0,v_n&" "&SUBSTITUTE({values_rng},"{prefix}",""),""))))', f"{{cell}}")
+             f'TEXTJOIN(", ",TRUE,IF(v_n>0,v_n&" "&SUBSTITUTE({values_rng},"{prefix}",""),""),'
+             f'IF({total}-SUM(v_n)>0,{total}-SUM(v_n)&" not recorded",""))))', f"{{cell}}")
 
 
 def pct(n, base="$E"):
@@ -941,9 +944,10 @@ for d in days():
         DS.set(f"W{R}", g0(("R", '"Pending"')), "calc_int")
         DS.set(f"X{R}", g0(("R", '"N/A"')), "calc_int")
         DS.set(f"Y{R}", F(f"E{R}-T{R}-U{R}-V{R}-W{R}-X{R}"), "calc_int")
-        for c, col, rng, pre in (("Z", "V", TECH_RANGE, "Technical - "), ("AA", "V", BEH_RANGE, "Behaviour - "),
-                                 ("AB", "X", lst("F"), "")):
-            f = textjoin_counts(tab, R, col, rng, pre)
+        for c, col, rng, pre, tot in (("Z", "V", TECH_RANGE, "Technical - ", f"$L{R}"),
+                                      ("AA", "V", BEH_RANGE, "Behaviour - ", f"$M{R}"),
+                                      ("AB", "X", lst("F"), "", f"$Q{R}")):
+            f = textjoin_counts(tab, R, col, rng, pre, tot)
             f.array = f"{c}{R}"
             DS.set(f"{c}{R}", f, "calc_wrap")
         DS.set(f"AC{R}", F(f"IFERROR(INDEX('Endpoint Check'!$G:$G,MATCH($AL{R},'Endpoint Check'!$P:$P,0)),\"\")"), "calc_pct")
@@ -960,8 +964,8 @@ for d in days():
             f'"On "&{day_txt}&", the "&Settings!$E${sr}&" team ("&Settings!$B${sr}&") recorded no '
             f'disconnected calls."),'
             f'"On "&{day_txt}&", the "&Settings!$E${sr}&" team ("&Settings!$B${sr}&") recorded a '
-            f'total of "&$D{R}&" disconnected calls on the dashboard: "&$G{R}&" disconnected and "&$H{R}&" hung up by '
-            f'the specialist ("&$I{R}&" pop-up / endpoint)."'
+            f'total of "&$D{R}&" disconnected calls on the dashboard ("&$I{R}&" pop-up / endpoint); "&$H{R}&" of them '
+            f'were hung up by the specialist (final)."'
             f'&IF($D{R}<>$E{R},CHAR(10)&"• Dashboard check: "&$E{R}&" of "&$D{R}&" cases are in the {tab} tab.","")'
             f'&CHAR(10)&"• Technical Issues: "&$L{R}&" ("&{p(f"$L{R}")}&")"&IF($Z{R}<>""," - "&$Z{R},"")'
             f'&CHAR(10)&"• Ambassador Behaviours: "&$M{R}&" ("&{p(f"$M{R}")}&")"&IF($AA{R}<>""," - "&$AA{R},"")'
@@ -975,17 +979,22 @@ for d in days():
             f'&CHAR(10)&"• Other actions: "&$V{R}&" IT ticket or feedback, "&$W{R}&" pending, "&$X{R}&" reviewed with '
             f'no action taken"&IF($Y{R}>0,", "&$Y{R}&" with no action recorded yet","")'
             f'&CHAR(10)&"• Pop-up disconnects (threshold "&TEXT(Settings!$B$5,"0%")&"): "&IF($AC{R}="",'
-            f'"calls handled not entered",TEXT($AC{R},"0.0%")&" - "&$AD{R})'
+            f'"calls handled not entered",TEXT($AC{R},"0.0%")&" - "&$AD{R}'
+            f'&IFERROR(IF(INDEX(\'Endpoint Check\'!$N:$N,MATCH($AL{R},\'Endpoint Check\'!$P:$P,0))="",""," - cause: "'
+            f'&INDEX(\'Endpoint Check\'!$N:$N,MATCH($AL{R},\'Endpoint Check\'!$P:$P,0))),""))'
             f'&CHAR(10)&"• Repeat offenders: "&IF($AE{R}=0,"none",$AE{R}&" - "&$AF{R})'
             f'&CHAR(10)&"• Additional Context: "&IF($AG{R}="","N/A",$AG{R}))'
         )
         DS.set(f"AJ{R}", F(summary), "calc_wrap")
+        open_checks = "(" + "+".join(cnt(("Z", f'"{z}"')) for z in (
+            "Root cause differs from Validation", "No-callback reason missing", "Action date missing")) + ")"
         DS.set(f"AK{R}", F(
             f'IF(AND($D{R}=0,$E{R}=0),IF($A{R}>Settings!$B$10,"No dashboard data yet","No cases"),'
             f'LET(v_t,TEXTJOIN("; ",TRUE,IF($D{R}<>$E{R},"dashboard "&$D{R}&" vs tab "&$E{R},""),'
             f'IF($K{R}>0,$K{R}&" not reviewed",""),'
             f'IF({cnt(("P", chr(34) + "<>" + chr(34)), ("V", chr(34) * 2))}>0,{cnt(("P", chr(34) + "<>" + chr(34)), ("V", chr(34) * 2))}&" reviewed without root cause",""),'
             f'IF($S{R}>0,$S{R}&" without callback info",""),IF($Y{R}>0,$Y{R}&" without action",""),'
+            f'IF({open_checks}>0,{open_checks}&" with Review check open",""),'
             f'IF($J{R}<>$L{R}+$M{R}+$N{R}+$O{R},$J{R}-$L{R}-$M{R}-$N{R}-$O{R}&" with a Validation value outside the list","")),'
             f'IF(v_t="","OK: all "&$E{R}&" cases covered",v_t)))'), "calc_wrap")
         ds_rows.append((d, tab, R))
@@ -1148,15 +1157,18 @@ rm = [
              "Callback made?, No-callback reason (when no callback was made) and Action date (when an action was "
              "taken). Review check (column Z) shows what is missing and should read Complete.", "Reviewer"]),
     ("row", ["3. Check pop-up disconnects",
-             "In Endpoint Check type Calls handled for each tab, or the Endpoint % shown on the dashboard. If Above "
-             "threshold? is Yes, run the technical check the same day and fill Technical check done?, Check date, "
-             "Checked by, Cause category and Written cause.", "Site or technical lead"]),
+             "During the day, watch the Endpoint % on the live dashboard: above the threshold, run the technical check "
+             "the same day. In Endpoint Check type Calls handled for each tab (or the dashboard Endpoint %), then "
+             "Technical check done?, Check date, Checked by, Cause category and Written cause. The written cause "
+             "appears in the daily text.", "Site or technical lead"]),
     ("row", ["4. Confirm repeat offenders",
              "In Repeat Offenders, every agent with status Confirm process needs a row in Process Tracker: In process?, "
              "Process stage, Date of last action and Owner.", "Team lead or OM"]),
     ("row", ["5. Send the summary",
              "In Daily Report choose the date, check that Coverage check reads OK for every tab, copy the texts into "
-             "the email, then type Prepared by and Sent on in Daily Summary.", "Person on the Extraction POCs rota"]),
+             "the email, then type Prepared by and Sent on in Daily Summary. Notes for the client go in Additional "
+             "context (Daily Summary). The row Other (no tab) is for information.",
+             "Owner of the day, weekend included (name a weekend owner in Extraction POCs)"]),
     None,
     ("section", "Definitions"),
     ("row", ["Dashboard cases", "Rows in RAW for the day whose cost center and language match the tab (Settings). "
@@ -1177,7 +1189,8 @@ rm = [
              "The language tabs take their rows from RAW with a QUERY. Add new rows at the bottom of RAW and do not "
              "sort or delete rows in RAW, otherwise reviews move to other cases.", ""]),
     ("row", ["RAW rows read by the language tabs", "The QUERY in cell A1 of each language tab reads RAW rows 1 to "
-             "2728. Daily Summary column F shows a difference as soon as dashboard cases are missing from a tab.", ""]),
+             "6655, the same rows as the RAW lookups (P:R). Daily Summary column F shows a difference as soon as "
+             "dashboard cases are missing from a tab.", ""]),
     ("row", ["Pre-filled values", "PREFILL_NOTE", ""]),
     ("row", ["Colours", "Teal headers and cells are typed. Grey headers are formulas: do not type over them.", ""]),
     ("row", ["Adding days", "Daily Summary and Endpoint Check run to 30 Jun 2027. To add days, copy the last day's "
@@ -1189,7 +1202,8 @@ total_prefill = sum(PREFILL_COUNT.values())
 prefill_note = (f"Callback made? was filled for {total_prefill} cases from the earlier review logs (PT_São Paulo, "
                 f"PT_Portugal, SP_Seville & Portugal, IT_Milan) where the same Id Interaction was found "
                 f"({', '.join(f'{t} {n}' for t, n in PREFILL_COUNT.items())}). For the Milan cases in IT_Milan, Root "
-                f"cause and No-callback reason were filled too.")
+                f"cause and No-callback reason were filled too. Pre-filled cells are in blue italics: the reviewer "
+                f"confirms or corrects them during the review.")
 r = 2
 for item in rm:
     if item is None:
